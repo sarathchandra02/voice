@@ -371,6 +371,14 @@ export class RealtimeVoice {
         : "Listening. Ask about your book.",
     });
   }
+  interrupt() {
+    if (this.state.status !== "connected") return;
+    try {
+      this.beginQuestion(true);
+    } catch {
+      this.fatal("The reply could not be stopped. Start voice again.");
+    }
+  }
   text(text: string) {
     const value = text.trim().slice(0, 2000);
     if (!value || this.state.status !== "connected") return;
@@ -525,7 +533,10 @@ export class RealtimeVoice {
     ) {
       this.update({
         activity:
-          this.activeResponse || this.working ? "thinking" : "listening",
+          (this.activeResponse && this.responseTurn === this.turn) ||
+          this.working
+            ? "thinking"
+            : "listening",
       });
     } else if (
       [
@@ -760,11 +771,21 @@ export class RealtimeVoice {
             title: data.error
               ? "Lookup could not finish"
               : sources.length
-                ? "Sources shared with OpenAI"
+                ? sources.every((source) => source.kind === "image")
+                  ? sources.length === 1
+                    ? "Page image sent"
+                    : "Page images sent"
+                  : sources.every((source) => source.kind === "text")
+                    ? sources.length === 1
+                      ? "Text excerpt sent"
+                      : "Text excerpts sent"
+                    : "Images and text excerpts sent"
                 : "Document lookup returned",
             detail: data.error
               ? String(data.error)
-              : "Receipt confirmed. Your reading position stayed in place.",
+              : sources.length
+                ? "OpenAI confirmed receipt. Expand a source below to inspect what was sent. Your reading position stayed in place."
+                : "OpenAI received the lookup result. No page image or text excerpt was sent.",
             sources,
             delivery: "accepted",
           });

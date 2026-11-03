@@ -1,3 +1,13 @@
+# Voice controls and source transparency — 3 November 2026
+
+The Studio dock now identifies Listening, Thinking, Speaking, and Microphone muted. Stop reply cancels generation, playback, and outstanding lookups while keeping the session open. An obsolete playback-clear event no longer resets the interrupted turn to Thinking. The existing Studio visual design is retained, with touch-sized controls.
+
+Source history now identifies page images versus text excerpts and exposes JPEG dimensions or character counts, the transmitted preview, delivery status, and printed-label/PDF-position mapping. Local book indexing is separate from the bounded excerpts sent on request.
+
+Validation: 23 unit tests and 36 browser tests passed, including interruption during playback and pending source receipt, stale transcript/receipt suppression, preserved microphone connection, and previews matching sent image/text types. TypeScript and production build passed. Browser tests use a simulated WebRTC peer and dummy credentials; no live provider or acoustic-quality claim is made.
+
+---
+
 # Page-delivery repair — 3 November 2026
 
 A user reported working speech followed by “Source delivery unconfirmed” on PDF lookups. Inspection found 37-character client item IDs (`item_` plus a separator-free UUID), exceeding the Realtime input schema's 32-character constraint. The provider simulator previously accepted these IDs. Enforcing the schema constraint reproduced a failed image/text delivery test; the same test passes after using unprefixed 32-character IDs.

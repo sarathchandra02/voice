@@ -56,10 +56,21 @@ function SourcePreview({
           {source.label ? `Book ${source.label} · ` : ""}PDF page {source.page}
         </span>
         <span className="source-type">
-          {source.kind === "image" ? "Image" : "Text"}
+          {source.kind === "image" ? "Page image" : "Text excerpt"}
         </span>
       </summary>
       <div className="history-source-body">
+        <p className="source-format">
+          {source.kind === "image"
+            ? `Rendered page image · JPEG${source.width && source.height ? ` · ${source.width} × ${source.height} pixels` : ""}. Includes the page’s text and visuals.`
+            : `Extracted text · ${source.text?.length.toLocaleString() ?? 0} characters${source.clipped ? " · shortened excerpt" : ""}. No page image included.`}
+        </p>
+        {source.label && (
+          <p className="small muted">
+            Book {source.label} is the printed label; PDF page {source.page} is
+            its position in the file. Both identify this page.
+          </p>
+        )}
         {url && (
           <img
             src={url}
@@ -151,6 +162,23 @@ export default function Companion({
   const voice = useVoice(doc, contextPage, voiceActivity);
   const connected = voice.state.status === "connected";
   const connecting = voice.state.status === "connecting";
+  const responding = connected && voice.state.activity !== "listening";
+  const voiceLabel = !connected
+    ? connecting
+      ? "Connecting…"
+      : "Ideas sound better out loud."
+    : voice.state.activity === "speaking"
+      ? "Speaking"
+      : voice.state.activity === "thinking"
+        ? "Thinking…"
+        : voice.state.muted
+          ? "Microphone muted"
+          : "Listening";
+  const voiceHint = responding
+    ? voice.state.muted
+      ? "Tap Stop reply to interrupt. Your microphone is off."
+      : "You can speak to interrupt, or tap Stop reply."
+    : voice.state.message;
   useEffect(() => {
     if (!preparedSource || preparedSource.documentId !== doc.id) return;
     const key = `${preparedSource.page}:${preparedSource.hash}`;
@@ -277,17 +305,17 @@ export default function Companion({
       <div className="voice-dock">
         <div className="voice-dock-main">
           <div
-            className={`voice-orb ${connected ? `voice-orb-${voice.state.activity}` : ""}`}
+            className={`voice-orb ${connected ? `voice-orb-${voice.state.muted && !responding ? "muted" : voice.state.activity}` : ""}`}
             role="img"
-            aria-label={`Voice companion ${connected ? voice.state.activity : "idle"}`}
+            aria-label={`Voice companion ${connected ? (voice.state.muted && !responding ? "muted" : voice.state.activity) : "idle"}`}
           />
           <div className="voice-dock-copy">
-            <h3>Ideas sound better out loud.</h3>
+            <h3 aria-live="polite">{voiceLabel}</h3>
             <p
               id="voice-availability"
               role={voice.state.status === "error" ? "alert" : "status"}
             >
-              {voice.state.message}
+              {voiceHint}
             </p>
           </div>
         </div>
@@ -302,6 +330,8 @@ export default function Companion({
                 : "Microphone off"
             }
             disabled={!connected}
+            aria-pressed={voice.state.muted}
+            title={voice.state.muted ? "Unmute microphone" : "Mute microphone"}
             onClick={voice.mute}
             aria-describedby="voice-availability"
           >
@@ -311,6 +341,11 @@ export default function Companion({
               <MicOff size={19} />
             )}
           </button>
+          {responding && (
+            <button className="interrupt-voice" onClick={voice.interrupt}>
+              <Square size={14} /> Stop reply
+            </button>
+          )}
           <button
             className="start-voice"
             onClick={connected || connecting ? voice.stop : voice.start}

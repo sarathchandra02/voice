@@ -86,6 +86,7 @@ export function useVoice(
     audio,
     start,
     stop: () => session.current?.stop(),
+    interrupt: () => session.current?.interrupt(),
     mute: () =>
       state.muted ? void session.current?.unmute() : session.current?.mute(),
     text: (value: string) => session.current?.text(value),

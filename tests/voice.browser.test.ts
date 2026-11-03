@@ -292,8 +292,11 @@ test("current-page tools stay bound to the question while the reader moves and o
     },
   });
   await expect(
-    page.getByText("Sources shared with OpenAI", { exact: true }),
-  ).toHaveCount(2);
+    page.getByText("Page image sent", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Text excerpt sent", { exact: true }),
+  ).toBeVisible();
   const items = await sent(page, "conversation.item.create");
   const image = items.find((event: any) =>
     event.item.content?.some((part: any) => part.type === "input_image"),
@@ -304,6 +307,29 @@ test("current-page tools stay bound to the question while the reader moves and o
     (event: any) => event.item.type === "function_call_output",
   );
   expect(JSON.parse(outputs[1].item.output).sources[0].page).toBe(37);
+  const imageCard = page.getByTestId("activity").filter({
+    has: page.getByRole("heading", { name: "Page image sent", exact: true }),
+  });
+  await imageCard.locator("summary").click();
+  await expect(imageCard).toContainText("Rendered page image · JPEG");
+  await expect(imageCard).toContainText("Received by OpenAI");
+  const textCard = page.getByTestId("activity").filter({
+    has: page.getByRole("heading", {
+      name: "Text excerpt sent",
+      exact: true,
+    }),
+  });
+  await textCard.locator("summary").click();
+  const excerpt = JSON.parse(outputs[1].item.output).sources[0].text;
+  await expect(textCard).toContainText(
+    `Extracted text · ${excerpt.length.toLocaleString()} characters`,
+  );
+  await expect(textCard).toContainText("No page image included.");
+  await expect(
+    textCard.locator(".history-source-body > p").filter({ hasText: excerpt }),
+  ).toBeVisible();
+  expect(excerpt.length).toBeLessThanOrEqual(2500);
+
   expect((await sent(page, "response.create")).length).toBe(2);
   await expect(
     page.getByRole("img", { name: "PDF page 5", exact: true }),
@@ -746,4 +772,105 @@ test("unconfirmed source timeout keeps voice alive without continuing from missi
   ).toBeVisible();
   await emit(page, { type: "conversation.item.added", item: output.item });
   expect((await sent(page, "response.create")).length).toBe(1);
+});
+
+test("stop reply cancels playback without ending voice and ignores stale events", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await simulate(page);
+  await start(page);
+  await expect(page.locator(".voice-dock h3")).toHaveText("Listening");
+  const response = await question(page);
+  await expect(page.locator(".voice-dock h3")).toHaveText("Thinking…");
+  await emit(page, {
+    type: "output_audio_buffer.started",
+    response_id: response.id,
+  });
+  await expect(page.locator(".voice-dock h3")).toHaveText("Speaking");
+  await page
+    .getByRole("button", { name: "Stop reply", exact: true })
+    .scrollIntoViewIfNeeded();
+  await expect(
+    page.getByRole("button", { name: "Stop reply", exact: true }),
+  ).toBeInViewport();
+  await page.screenshot({
+    path: "/tmp/voice-speaking-mobile.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Stop reply", exact: true }).click();
+  expect((await sent(page, "response.cancel")).at(-1).response_id).toBe(
+    response.id,
+  );
+  expect(await sent(page, "output_audio_buffer.clear")).toHaveLength(1);
+  await emit(page, {
+    type: "output_audio_buffer.cleared",
+    response_id: response.id,
+  });
+  await emit(page, {
+    type: "output_audio_buffer.started",
+    response_id: response.id,
+  });
+  await emit(page, {
+    type: "response.output_audio_transcript.delta",
+    response_id: response.id,
+    item_id: "obsolete",
+    delta: "Obsolete answer",
+  });
+  await emit(page, {
+    type: "response.done",
+    response: { ...response, status: "cancelled", output: [] },
+  });
+  await expect(page.locator(".voice-dock h3")).toHaveText("Listening");
+  await expect(page.getByText("Obsolete answer")).toHaveCount(0);
+  expect(await sent(page, "response.create")).toHaveLength(1);
+  expect(
+    await page.evaluate(() => (window as any).voiceTest.tracks[0].readyState),
+  ).toBe("live");
+  await question(page, "speech_next");
+  expect(await sent(page, "response.create")).toHaveLength(2);
+  await expect(page.locator(".voice-dock h3")).toHaveText("Thinking…");
+});
+
+test("stop reply cancels an outstanding source receipt and keeps muted voice available", async ({
+  page,
+}) => {
+  await simulate(page, { noAck: true });
+  await start(page);
+  const response = await question(page);
+  await emit(page, {
+    type: "response.done",
+    response: {
+      ...response,
+      status: "completed",
+      output: [
+        {
+          type: "function_call",
+          name: "current_page",
+          call_id: "stop_lookup",
+          arguments: JSON.stringify({ format: "text" }),
+        },
+      ],
+    },
+  });
+  await expect(
+    page.getByText("Sharing sources", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Mute microphone", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Stop reply", exact: true }).click();
+  await expect(page.locator(".voice-dock h3")).toHaveText("Microphone muted");
+  await expect(
+    page.getByText("Source delivery unconfirmed", { exact: true }),
+  ).toBeVisible();
+  for (const event of await sent(page, "conversation.item.create"))
+    await emit(page, { type: "conversation.item.added", item: event.item });
+  expect(await sent(page, "response.create")).toHaveLength(1);
+  await expect(
+    page.getByRole("button", { name: "Stop voice", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Unmute microphone", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
 });

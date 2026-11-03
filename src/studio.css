@@ -1059,3 +1059,42 @@ button:hover {
   padding: 6px;
   background: #f3f7f3;
 }
+
+/* Clear voice controls stay reachable on touch screens. */
+.voice-dock .voice-controls {
+  flex-wrap: wrap;
+}
+.voice-dock .voice-mute {
+  min-width: 44px;
+  min-height: 44px;
+  color: #365448;
+}
+.voice-mute[aria-pressed="true"] {
+  background: #f0dfd7;
+  color: #754f3c;
+}
+.voice-dock .start-voice,
+.interrupt-voice {
+  min-height: 44px;
+}
+.interrupt-voice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #bdcfc0;
+  border-radius: 24px;
+  background: #fffefa;
+  color: #365448;
+  padding: 9px 14px;
+  font-size: 12px;
+}
+.voice-orb-muted {
+  opacity: 0.55;
+  filter: saturate(0.3);
+}
+.source-format {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #365448;
+}
