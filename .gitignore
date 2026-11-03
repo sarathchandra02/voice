@@ -1,0 +1,10 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+public/fixtures/
+.env
+.env.*
+!.env.example
+*.log
+public/pdf-assets/
