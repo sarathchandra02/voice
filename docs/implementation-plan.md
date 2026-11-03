@@ -159,7 +159,7 @@ Follow with workbook parsing/rendering and retrieval in subsequent reviewable co
 ## Constraints to carry into implementation
 
 - Original files remain local. Voice may transmit bounded audio, relevant excerpts, and requested page images after disclosure and deliberate Start.
-- Preserve the specification's initial resource limits in one validated configuration module; test limits at parser, worker, broker, and server boundaries.
+- The user revised the PDF limits to 1,000 pages and 40 MB (40,000,000 bytes) per file. These override the attachment's initial PDF limits. Keep other resource limits centralized and validate them at parser, worker, broker, and server boundaries.
 - Keep document content, raw audio, image bytes, transcripts, and credentials out of persistent diagnostics and the spending ledger.
 - Document content and model tool arguments are untrusted. Neither can alter server policy or expand the available tools.
 - Use the existing isolated checkout. A separate worktree is unnecessary unless explicitly requested.

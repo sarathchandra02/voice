@@ -45,7 +45,9 @@ export class PdfDocument {
   }
   static async open(file: File, signal: AbortSignal) {
     if (file.size > LIMITS.fileBytes)
-      throw new Error("This version supports PDFs up to 20 MiB.");
+      throw new Error(
+        `This version supports PDFs up to ${LIMITS.fileBytes / 1_000_000} MB.`,
+      );
     const bytes = new Uint8Array(await file.arrayBuffer());
     signal.throwIfAborted();
     if (!new TextDecoder().decode(bytes.slice(0, 1024)).includes("%PDF-"))
@@ -70,7 +72,9 @@ export class PdfDocument {
       const pdf = await task.promise;
       signal.throwIfAborted();
       if (pdf.numPages > LIMITS.pages)
-        throw new Error("This version supports at most 3,000 PDF pages.");
+        throw new Error(
+          `This version supports at most ${LIMITS.pages.toLocaleString("en-US")} PDF pages.`,
+        );
       doc = new PdfDocument(pdf, file.name);
       const labels = await pdf.getPageLabels();
       doc.hasBookLabels = !!labels;

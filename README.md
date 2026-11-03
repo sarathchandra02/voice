@@ -27,7 +27,7 @@ npm run dev
 
 ## What works
 
-- Local PDF loading with a 20 MiB file limit and 3,000-page ceiling.
+- Local PDF loading with a 40 MB file limit (40,000,000 bytes) and 1,000-page ceiling.
 - Actual page rendering, physical page navigation, zoom, fit width, and a clearly labelled selectable extracted-text fallback.
 - PDF-provided book labels, including Roman front matter and ambiguous-label rejection; individual local label corrections. Unlabelled pages are not silently treated as known printed labels.
 - Progressive keyword search with pause/resume, coverage counts, and bounded index entries.
@@ -62,7 +62,7 @@ See the [implementation plan](docs/implementation-plan.md) for the complete rele
 - Labels can be corrected per page; range/offset correction, mapping provenance, and inferred printed-number extraction remain pending.
 - The first PDF page currently waits for label/outline discovery. Very complex outlines and large files need profiling and a foreground-first loading refinement.
 - Text uses an extracted-text fallback, not an aligned selectable text layer. Selection-to-question context is pending.
-- Index term/posting counts and text caches are bounded, but fixed-memory index arenas and a strict four-page PDF resource scheduler are not implemented. The 3,000-page ceiling is a guard, not a performance certification. Full hostile-document and memory-stress validation remains pending.
+- Index term/posting counts and text caches are bounded, but fixed-memory index arenas and a strict four-page PDF resource scheduler are not implemented. The 1,000-page ceiling is a guard, not a performance certification. Full hostile-document and memory-stress validation remains pending.
 - A pixel/byte bound limits page images; crop-based recovery for pages that exceed the image limit is pending.
 - The local source registry retains the most recent twelve sources. Conversation activity retains thirty entries and at most six image previews, separately from that registry. Older image previews are released; document replacement clears both. Nothing is persisted.
 - The voice orb is idle and voice controls are disabled. Current history contains real local document activity, not speech transcripts, model responses, or provider delivery acknowledgments. Those will be connected in the voice milestone.

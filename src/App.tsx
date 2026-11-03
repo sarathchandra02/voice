@@ -20,7 +20,7 @@ import {
 import type { PdfDocument } from "./documents/pdf";
 import Reader from "./components/Reader";
 import Companion from "./components/Companion";
-import type { Source } from "./documents/model";
+import { LIMITS, type Source } from "./documents/model";
 
 export default function App() {
   const [doc, setDoc] = useState<PdfDocument | null>(null);
@@ -203,7 +203,11 @@ export default function App() {
             </span>
             <strong>{loading ? "Opening your document…" : "Open a PDF"}</strong>
             <span>Choose a file or drop it here</span>
-            <small>Up to 20 MiB · Excel support is on the way</small>
+            <small>
+              Up to {LIMITS.fileBytes / 1_000_000} MB ·{" "}
+              {LIMITS.pages.toLocaleString("en-US")} pages · Excel support is on
+              the way
+            </small>
             <span className="upload-arrow">
               <ArrowRight size={20} />
             </span>

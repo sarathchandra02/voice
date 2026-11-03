@@ -1,6 +1,6 @@
 export const LIMITS = {
-  fileBytes: 20 * 1024 * 1024,
-  pages: 3000,
+  fileBytes: 40_000_000,
+  pages: 1000,
   textChars: 200000,
   textItems: 20000,
   cachePages: 12,
