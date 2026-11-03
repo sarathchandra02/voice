@@ -1,3 +1,4 @@
+import { searchTokens } from "./references";
 export const LIMITS = {
   fileBytes: 40_000_000,
   pages: 1000,
@@ -19,6 +20,9 @@ export type Source = PageRef & {
   width?: number;
   height?: number;
   clipped: boolean;
+  textStart?: number;
+  totalTextChars?: number;
+  nextTextOffset?: number;
 };
 export type Chapter = { title: string; page: number; depth: number };
 export type Coverage = {
@@ -57,11 +61,7 @@ export function resolvePage(
     );
   return matches[0];
 }
-export function tokens(text: string): string[] {
-  return [
-    ...new Set(text.toLocaleLowerCase().match(/[\p{L}\p{N}]{2,64}/gu) || []),
-  ];
-}
+export const tokens = searchTokens;
 export class LocalIndex {
   private words = new Map<string, number[]>();
   private pages = new Set<number>();
@@ -88,15 +88,26 @@ export class LocalIndex {
       this.count++;
     }
   }
-  search(query: string): number[] {
+  search(
+    query: string,
+    offset = 0,
+    startPage = 1,
+    endPage = Infinity,
+  ): number[] {
     const queryTokens = tokens(query).slice(0, 20);
     if (!queryTokens.length) return [];
     const lists = queryTokens.map((word) => this.words.get(word) || []);
     lists.sort((a, b) => a.length - b.length);
     const others = lists.slice(1).map((list) => new Set(list));
     return lists[0]
-      .filter((page) => others.every((set) => set.has(page)))
-      .slice(0, 5);
+      .filter(
+        (page) =>
+          page >= startPage &&
+          page <= endPage &&
+          others.every((set) => set.has(page)),
+      )
+      .sort((a, b) => a - b)
+      .slice(offset, offset + 5);
   }
   listTerms(query = "", offset = 0) {
     const common = new Set(

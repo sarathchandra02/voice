@@ -7,6 +7,7 @@ async function simulate(
     delayedMic?: boolean;
     noKey?: boolean;
     noAck?: boolean;
+    fixture?: string;
   } = {},
 ) {
   await page.addInitScript((opts) => {
@@ -140,7 +141,7 @@ async function simulate(
   await page.goto("/");
   await page
     .getByLabel("Open PDF file", { exact: true })
-    .setInputFiles("public/fixtures/book.pdf");
+    .setInputFiles(options.fixture || "public/fixtures/book.pdf");
   await expect(
     page.getByRole("img", { name: "PDF page 1", exact: true }),
   ).toBeVisible();
@@ -873,4 +874,161 @@ test("stop reply cancels an outstanding source receipt and keeps muted voice ava
   await expect(
     page.getByRole("button", { name: "Unmute microphone", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
+});
+
+test("figure search scans the whole PDF, shares the late caption, then verifies its page image without moving the reader", async ({
+  page,
+}) => {
+  await simulate(page, { fixture: "public/fixtures/figures.pdf" });
+  await start(page);
+  const response = await question(page);
+  await emit(page, {
+    type: "response.done",
+    response: {
+      ...response,
+      status: "completed",
+      output: [
+        {
+          type: "function_call",
+          call_id: "find_figure_1",
+          name: "find_figure",
+          arguments: JSON.stringify({ number: "9.2" }),
+        },
+      ],
+    },
+  });
+  await expect(
+    page.getByText("Text excerpts sent", { exact: true }),
+  ).toBeVisible();
+  const items = await sent(page, "conversation.item.create");
+  const result = JSON.parse(
+    items.find((event: any) => event.item.call_id === "find_figure_1").item
+      .output,
+  );
+  expect(result.scan).toMatchObject({
+    checked: 30,
+    complete: true,
+    unreadable: 0,
+    failed: 0,
+  });
+  expect(result.candidates.map((c: any) => c.page)).toEqual([27, 3]);
+  expect(result.sources[0]).toMatchObject({
+    page: 27,
+    label: "21",
+    kind: "text",
+  });
+  expect(result.sources[0].textStart).toBeGreaterThan(2500);
+  expect(result.sources[0].text).toContain("Figure 9.2: Regression residuals");
+  expect(result.sources[0].text.length).toBeLessThanOrEqual(2500);
+  expect(
+    items.some((event: any) =>
+      event.item.content?.some((part: any) => part.type === "input_image"),
+    ),
+  ).toBe(false);
+  await expect(
+    page.getByRole("img", { name: "PDF page 1", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/Checked 30 of 30 pages locally/)).toBeVisible();
+  const turn = (await sent(page, "response.create")).at(-1).response.metadata
+    .turn;
+  const next = { id: "figure_image_response", metadata: { turn } };
+  await emit(page, { type: "response.created", response: next });
+  await emit(page, {
+    type: "response.done",
+    response: {
+      ...next,
+      status: "completed",
+      output: [
+        {
+          type: "function_call",
+          call_id: "figure_image",
+          name: "read_page",
+          arguments: JSON.stringify({
+            page: "27",
+            numbering: "pdf",
+            format: "image",
+          }),
+        },
+      ],
+    },
+  });
+  await expect(
+    page.getByText("Page image sent", { exact: true }),
+  ).toBeVisible();
+  const image = (await sent(page, "conversation.item.create")).find(
+    (event: any) =>
+      event.item.content?.some((part: any) => part.type === "input_image"),
+  );
+  expect(image.item.content[0].text).toContain("physical PDF page 27");
+  expect(image.item.content[1].image_url).toMatch(/^data:image\/jpeg;base64,/);
+  await expect(
+    page.getByRole("img", { name: "PDF page 1", exact: true }),
+  ).toBeVisible();
+  const card = page.getByTestId("activity").filter({
+    has: page.getByRole("heading", {
+      name: "Text excerpts sent",
+      exact: true,
+    }),
+  });
+  await card.locator("summary").first().click();
+  await expect(card).toContainText("Figure 9.2: Regression residuals");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: "/tmp/figure-search-desktop.png",
+    fullPage: true,
+  });
+});
+
+test("search excerpts surround exact figure matches and page text supports continuation", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    const pdfPath = "/src/documents/pdf.ts";
+    const toolsPath = "/src/voice/tools.ts";
+    const { PdfDocument } = await import(/* @vite-ignore */ pdfPath);
+    const { DocumentTools } = await import(/* @vite-ignore */ toolsPath);
+    const bytes = await (await fetch("/fixtures/figures.pdf")).blob();
+    const signal = new AbortController().signal;
+    const doc = await PdfDocument.open(
+      new File([bytes], "figures.pdf"),
+      signal,
+    );
+    try {
+      for (let p = 1; p <= 30; p++)
+        doc.index.add(p, (await doc.text(p, signal)).text);
+      const tools = new DocumentTools(doc, 1);
+      const search = await tools.run(
+        "search_book",
+        JSON.stringify({ query: "Figure 9.2" }),
+        signal,
+      );
+      const first = await tools.run(
+        "read_page",
+        JSON.stringify({ page: "27", numbering: "pdf", format: "text" }),
+        signal,
+      );
+      const second = await tools.run(
+        "read_page",
+        JSON.stringify({
+          page: "27",
+          numbering: "pdf",
+          format: "text",
+          text_offset: first.sources[0].nextTextOffset,
+        }),
+        signal,
+      );
+      return { search, first: first.sources[0], second: second.sources[0] };
+    } finally {
+      doc.dispose();
+    }
+  });
+  expect(result.search.sources.map((s: any) => s.page)).toEqual([3, 27]);
+  expect(result.search.sources[1].text).toContain(
+    "Figure 9.2: Regression residuals",
+  );
+  expect(result.first.text).not.toContain("Figure 9.2: Regression residuals");
+  expect(result.first.nextTextOffset).toBe(2500);
+  expect(result.second.text).toContain("Figure 9.2: Regression residuals");
+  expect(result.second.textStart).toBe(2500);
 });

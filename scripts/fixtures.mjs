@@ -115,3 +115,63 @@ ambiguous.catalog.set(
 );
 await writeFile("public/fixtures/ambiguous.pdf", await ambiguous.save());
 console.log("Generated three synthetic PDFs; no personal data.");
+
+// A figure lookup regression: early mentions, a misleading 9.20, and a caption
+// after 2,500 characters on a late page. No bookmarks are needed to locate it.
+const figures = await PDFDocument.create();
+const figureFont = await figures.embedFont(StandardFonts.Helvetica);
+for (let n = 1; n <= 30; n++) {
+  const page = figures.addPage([612, 792]);
+  page.drawText(`Research fixture / PDF page ${n}`, {
+    x: 50,
+    y: 760,
+    size: 12,
+    font: figureFont,
+  });
+  for (let line = 0; line < 45; line++)
+    page.drawText(
+      "Background evidence about regression models and measured observations.",
+      { x: 50, y: 730 - line * 12, size: 9, font: figureFont },
+    );
+  if (n === 3)
+    page.drawText("See Figure 9.2 for a later comparison.", {
+      x: 50,
+      y: 170,
+      size: 12,
+      font: figureFont,
+    });
+  if (n === 4)
+    page.drawText("Figure 9.20: An unrelated comparison.", {
+      x: 50,
+      y: 170,
+      size: 12,
+      font: figureFont,
+    });
+  if (n === 27) {
+    page.drawText("Figure 9.2: Regression residuals across two groups.", {
+      x: 50,
+      y: 170,
+      size: 12,
+      font: figureFont,
+    });
+    page.drawRectangle({
+      x: 100,
+      y: 60,
+      width: 60,
+      height: 80,
+      color: rgb(0.2, 0.5, 0.6),
+    });
+    page.drawRectangle({
+      x: 230,
+      y: 60,
+      width: 60,
+      height: 50,
+      color: rgb(0.7, 0.4, 0.2),
+    });
+  }
+}
+figures.catalog.set(
+  PDFName.of("PageLabels"),
+  figures.context.obj({ Nums: [0, { S: "r" }, 6, { S: "D", St: 1 }] }),
+);
+await writeFile("public/fixtures/figures.pdf", await figures.save());

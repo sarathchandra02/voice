@@ -690,7 +690,20 @@ export class RealtimeVoice {
             typeof call.call_id !== "string"
           )
             throw new Error("Invalid document tool call.");
-          const result = await tools.run(call.name, call.arguments, signal);
+          const result = await tools.run(
+            call.name,
+            call.arguments,
+            signal,
+            (message) => {
+              if (this.alive && !signal.aborted && turn === this.turn)
+                this.onActivity({
+                  id: activityId,
+                  kind: "lookup",
+                  title: "Scanning for the figure…",
+                  detail: message,
+                });
+            },
+          );
           sources = result.sources;
           data = {
             question_turn: turn,
@@ -784,8 +797,8 @@ export class RealtimeVoice {
             detail: data.error
               ? String(data.error)
               : sources.length
-                ? "OpenAI confirmed receipt. Expand a source below to inspect what was sent. Your reading position stayed in place."
-                : "OpenAI received the lookup result. No page image or text excerpt was sent.",
+                ? `${typeof data.scan_summary === "string" ? data.scan_summary + " " : ""}OpenAI confirmed receipt. Expand a source below to inspect what was sent. Your reading position stayed in place.`
+                : `${typeof data.scan_summary === "string" ? data.scan_summary + " " : ""}OpenAI received the lookup result. No page image or text excerpt was sent.`,
             sources,
             delivery: "accepted",
           });

@@ -1,3 +1,13 @@
+# Figure-search experiment — 3 November 2026
+
+The working demo remains on GitHub main at `c3a9cb4`, tagged `demo-working-2026-11-03`. This increment belongs to `experiment/figure-search`; see [branch and rollback policy](experiments.md).
+
+Validation: 32 unit tests and 38 browser tests passed. New checks cover single-digit chapter references, exact decimal identifiers and abbreviations, physical-page-range pagination, captions beyond the old excerpt cutoff, mention-versus-caption ranking, 250-page scan continuation, cancellation and document isolation, extraction gaps, invalid scan ranges, and continued page-text reads. The browser fixture places the actual Figure 9.2 on PDF page 27 / printed page 21, after 2,500 characters, with earlier misleading references. The voice integration sends the matching passage and then the requested image while retaining reader page 1. TypeScript and production build passed.
+
+Browser voice tests use intercepted provider requests and a simulated WebRTC peer. They verify retrieval and orchestration, not the live model's tool choices or visual interpretation. No paid API call was made. OCR and inferred chapter mapping are outside this first experiment.
+
+---
+
 # Voice controls and source transparency — 3 November 2026
 
 The Studio dock now identifies Listening, Thinking, Speaking, and Microphone muted. Stop reply cancels generation, playback, and outstanding lookups while keeping the session open. An obsolete playback-clear event no longer resets the interrupted turn to Thinking. The existing Studio visual design is retained, with touch-sized controls.

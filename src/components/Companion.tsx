@@ -77,6 +77,18 @@ function SourcePreview({
             alt={`Local context image of PDF page ${source.page}`}
           />
         )}
+        {source.text &&
+          source.textStart !== undefined &&
+          source.totalTextChars !== undefined && (
+            <p className="small muted">
+              Text position {source.textStart + 1}–
+              {source.textStart + (source.text?.length ?? 0)} of{" "}
+              {source.totalTextChars} extracted characters on this page.
+              {source.nextTextOffset !== undefined
+                ? " More text is available on request."
+                : ""}
+            </p>
+          )}
         {source.text && <p>{source.text}</p>}
         {source.kind === "image" && !url && (
           <p>This older image preview was released to save memory.</p>

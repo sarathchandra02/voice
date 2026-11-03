@@ -1,3 +1,4 @@
+import { searchExcerptOffset } from "./references";
 import {
   getDocument,
   GlobalWorkerOptions,
@@ -179,17 +180,31 @@ export class PdfDocument {
       this.cache.delete(this.cache.keys().next().value!);
     return result;
   }
-  async read(page: number, signal?: AbortSignal): Promise<Source> {
+  async read(
+    page: number,
+    signal?: AbortSignal,
+    options: { offset?: number; maxChars?: number; query?: string } = {},
+  ): Promise<Source> {
     const result = await this.text(page, signal);
     this.check(page, signal);
+    const offset = options.query
+      ? searchExcerptOffset(result.text, options.query)
+      : (options.offset ?? 0);
+    if (offset > result.text.length)
+      throw new Error("Text offset is beyond this page's extracted text.");
+    const limit = options.maxChars ?? 8000;
+    const end = Math.min(result.text.length, offset + limit);
     const source: Source = {
       id: crypto.randomUUID(),
       documentId: this.id,
       page,
       label: this.labels[page - 1],
       kind: "text",
-      text: result.text.slice(0, 8000),
-      clipped: result.clipped || result.text.length > 8000,
+      text: result.text.slice(offset, end),
+      textStart: offset,
+      totalTextChars: result.text.length,
+      nextTextOffset: end < result.text.length ? end : undefined,
+      clipped: result.clipped || offset > 0 || end < result.text.length,
     };
     this.register(source);
     return source;
