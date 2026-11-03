@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 const file = "public/fixtures/book.pdf";
+const appOrigin = `http://127.0.0.1:${process.env.TEST_PORT || "5173"}`;
 async function open(page: Page, path = file) {
   await page.goto("/");
   await page.getByLabel("Open PDF file", { exact: true }).setInputFiles(path);
@@ -15,7 +16,7 @@ test("local reading renders, searches the whole book, and inspects off-screen ev
   page.on("pageerror", (error) => failures.push(error.message));
   page.on("request", (request) => {
     if (
-      !request.url().startsWith("http://127.0.0.1:5173") &&
+      !request.url().startsWith(appOrigin + "/") &&
       !request.url().startsWith("blob:") &&
       !request.url().startsWith("data:")
     )
@@ -415,4 +416,94 @@ test("page index preserves duplicate labels and is cleared on document replaceme
       exact: true,
     }),
   ).toHaveCount(0);
+});
+test("connection settings save, update and remove a key locally without affecting the reader or calling a provider", async ({
+  page,
+}) => {
+  const outbound: string[] = [];
+  page.on("request", (request) => {
+    if (
+      request.method() !== "GET" ||
+      (/^https?:/.test(request.url()) &&
+        !request.url().startsWith(appOrigin + "/"))
+    )
+      outbound.push(request.url());
+  });
+  await open(page);
+  await expect(
+    page.getByRole("dialog", { name: "A voice for your reading." }),
+  ).not.toBeVisible();
+  const settings = page.getByRole("button", {
+    name: "Connection settings",
+    exact: true,
+  });
+  await settings.click();
+  await page
+    .getByLabel("OpenAI API key", { exact: true })
+    .fill("test-placeholder-key-one");
+  await page.getByRole("button", { name: "Save key", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "No API request was made",
+  );
+  await expect(page.getByLabel("OpenAI API key", { exact: true })).toHaveValue(
+    "",
+  );
+  await page.keyboard.press("Escape");
+  await expect(settings).toBeFocused();
+  await expect(page.getByTestId("reader-position")).toContainText(
+    "PDF page 1 of 100",
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("dialog", { name: "A voice for your reading." }),
+  ).not.toBeVisible();
+  await settings.click();
+  await expect(
+    page.getByText("Key saved · not verified", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("OpenAI API key", { exact: true })).toHaveValue(
+    "",
+  );
+  await page
+    .getByLabel("OpenAI API key", { exact: true })
+    .fill("test-placeholder-key-two");
+  await page.getByRole("button", { name: "Update key", exact: true }).click();
+  expect(
+    await page.evaluate(() => localStorage.getItem("margin.openai-key.v1")),
+  ).toBe("test-placeholder-key-two");
+  await page
+    .getByRole("button", { name: "Remove saved key", exact: true })
+    .click();
+  expect(
+    await page.evaluate(() => localStorage.getItem("margin.openai-key.v1")),
+  ).toBeNull();
+  await expect(page.getByText("No key saved", { exact: true })).toBeVisible();
+  expect(outbound).toEqual([]);
+});
+test("blocked key storage reports a failure without claiming success or blocking local reading", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException("Storage blocked", "SecurityError");
+    };
+  });
+  await open(page);
+  await page
+    .getByRole("button", { name: "Connection settings", exact: true })
+    .click();
+  await page
+    .getByLabel("OpenAI API key", { exact: true })
+    .fill("test-placeholder-never-saved");
+  await page.getByRole("button", { name: "Save key", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("could not save the key");
+  await expect(page.getByText("No key saved", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("img", { name: "PDF page 1", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Next page", exact: true }).click();
+  await expect(
+    page.getByRole("img", { name: "PDF page 2", exact: true }),
+  ).toBeVisible();
 });

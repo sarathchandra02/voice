@@ -20,6 +20,7 @@ import {
 import type { PdfDocument } from "./documents/pdf";
 import Reader from "./components/Reader";
 import Companion from "./components/Companion";
+import ConnectionSettings from "./components/ConnectionSettings";
 import { LIMITS, type Source } from "./documents/model";
 
 export default function App() {
@@ -154,15 +155,54 @@ export default function App() {
     >
       <header className="topbar">
         <a className="brand" href="/" aria-label="Margin home">
-          <span className="brand-icon">
-            <BookOpen size={21} />
+          <span className="brand-icon">m</span>
+          <span>
+            margin<em> / studio</em>
           </span>
-          margin<span className="brand-dot">.</span>
         </a>
-        <span className="brand-caption">A little more understanding.</span>
-        <div className="privacy">
-          <ShieldCheck size={15} />
-          Files stay local while reading
+        <div className="active-document">
+          {doc ? (
+            <>
+              <span className="status-dot" />
+              <span title={doc.name}>{doc.name}</span>
+            </>
+          ) : (
+            <span>Your reading space</span>
+          )}
+        </div>
+        <div className="topbar-actions">
+          <div className="privacy">
+            <ShieldCheck size={14} />
+            <span>On your device</span>
+          </div>
+          {doc && (
+            <div className="document-actions">
+              {backPage !== null && (
+                <button
+                  className="text-button"
+                  onClick={() => {
+                    setPage(backPage);
+                    setBackPage(null);
+                  }}
+                >
+                  <ArrowLeft size={14} />
+                  Back to reading
+                </button>
+              )}
+              <button onClick={() => picker.current?.click()}>
+                <FileUp size={15} />
+                Replace
+              </button>
+              <button
+                className="icon-button"
+                onClick={clear}
+                aria-label="Clear document"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          )}
+          <ConnectionSettings />
         </div>
       </header>
       <input
@@ -253,40 +293,6 @@ export default function App() {
         </main>
       ) : (
         <main className="workspace">
-          <div className="document-header">
-            <div className="filename">
-              <span className="file-kind">PDF</span>
-              <div>
-                <h1 title={doc.name}>{doc.name}</h1>
-                <span>{doc.pdf.numPages} pages · private to this browser</span>
-              </div>
-            </div>
-            <div className="document-actions">
-              {backPage !== null && (
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    setPage(backPage);
-                    setBackPage(null);
-                  }}
-                >
-                  <ArrowLeft size={14} />
-                  Back to reading
-                </button>
-              )}
-              <button onClick={() => picker.current?.click()}>
-                <FileUp size={15} />
-                Replace
-              </button>
-              <button
-                className="icon-button"
-                onClick={clear}
-                aria-label="Clear document"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          </div>
           <div
             className={`split ${collapsed ? "collapsed" : ""}`}
             style={{ "--reader-width": `${readerWidth}%` } as CSSProperties}
@@ -327,10 +333,10 @@ export default function App() {
             </div>
             <aside className="companion" aria-label="Research companion">
               <div className="companion-header">
-                <span>
-                  <span className="status-dot" />
-                  Companion
-                </span>
+                <div className="companion-title">
+                  <span className="eyebrow">THINK OUT LOUD</span>
+                  <h2>Follow the thought.</h2>
+                </div>
                 <div className="companion-header-actions">
                   {!collapsed && (
                     <button
@@ -370,9 +376,7 @@ export default function App() {
                   closeTools={() => setToolsOpen(false)}
                 />
               </div>
-              {collapsed && (
-                <span className="collapsed-label">YOUR RESEARCH SPACE</span>
-              )}
+              {collapsed && <span className="collapsed-label">COMPANION</span>}
             </aside>
           </div>
           <footer className="workspace-footer">

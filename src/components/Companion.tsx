@@ -177,7 +177,7 @@ export default function Companion({
           <span className="intro-icon">
             <MessageCircle size={20} />
           </span>
-          <h2>Room for a conversation.</h2>
+          <h2>Your book. A little more perspective.</h2>
           <p>
             Your questions, replies, and shared pages will appear here when
             voice is connected.
@@ -236,22 +236,26 @@ export default function Companion({
           New activity <ArrowDown size={13} />
         </button>
       )}
+      <div className="reading-context" title={contextState}>
+        <span className="status-dot" />
+        {contextPage
+          ? `With you on PDF page ${contextPage}`
+          : "Opening your page…"}
+      </div>
       <div className="voice-dock">
-        <div className="reading-context" title={contextState}>
-          <span className="status-dot" />
-          {contextPage
-            ? `With you on PDF page ${contextPage}`
-            : "Opening your page…"}
+        <div className="voice-dock-main">
+          <div
+            className="voice-orb"
+            role="img"
+            aria-label="Voice companion idle"
+          />
+          <div className="voice-dock-copy">
+            <h3>Ideas sound better out loud.</h3>
+            <p id="voice-availability">
+              Voice isn’t connected yet. Your microphone is off.
+            </p>
+          </div>
         </div>
-        <div
-          className="voice-orb"
-          role="img"
-          aria-label="Voice companion idle"
-        />
-        <h3>A conversation, beside your book.</h3>
-        <p id="voice-availability">
-          Voice isn’t connected yet. Your microphone is off.
-        </p>
         <div className="voice-controls">
           <button
             className="voice-mute"

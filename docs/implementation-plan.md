@@ -8,6 +8,14 @@ The selected repository, `sarathchandra02/voice`, was verified empty. This plan 
 
 Current delivery: the first PDF reader/research increment has been implemented. See README.md and validation.md for the precise verified subset and remaining work. Excel, voice, and server/provider integration are still planned. No provider calls or production deployment have been made.
 
+## Current prototype direction — Studio
+
+The user selected Studio from the three isolated design mocks and requested implementation on a separate branch. `feat/studio-interface` applies it to the working reader: soft green workspace, approximately 60% document width, compact activity bubbles, system sans-serif type, horizontal voice dock, and tools behind the three-dot button. Existing reader and background retrieval behavior is retained.
+
+For the current personal prototype, the user's later browser-local, bring-your-own-key direction supersedes the original hosted authentication/server requirements below. One-click connection settings now save, update, and remove an optional OpenAI key in localStorage. The key is unencrypted, explicitly unverified, and unused until provider integration is implemented. Setup does not appear automatically. Documents and history are still session-only; local document persistence remains pending.
+
+Live voice integration must verify current OpenAI model/protocol support and browser connection requirements before choosing a transport. Do not assume the older server-mediated design or any model name from the attachment is the selected prototype implementation. Keep explicit start/stop, bounded document tools, inspectable evidence, and usage visibility. The original server/authentication/ledger milestones below are retained as future hosted-version design, not prerequisites for this local prototype.
+
 ## Technical decisions
 
 - **Browser:** React and TypeScript with Vite. Separate reader, document adapters, retrieval, sources, audio, and conversation state modules.
@@ -86,7 +94,7 @@ Use approximately 60% of the desktop workspace for the document. The companion i
 
 The timeline should make actual inputs and outcomes inspectable without exposing internal prompts or hidden reasoning. Distinguish local page preparation, confirmed provider delivery, user transcripts, assistant transcripts, and retrieved sources. Only show events backed by their actual lifecycle; preparation never implies delivery. Expandable source chips expose relevant page images or excerpts. Background lookups preserve the visible book position. New activity must not pull a user away from older conversation entries.
 
-The current increment implements the layout, real local activity, source inspection, and menu. Live voice controls remain disabled until the server and provider gates are implemented. Provider delivery and speech transcripts remain pending. Keep the history bounded and session-local, and clear it on document replacement.
+The current increment implements the layout, real local activity, source inspection, and menu. Live voice controls remain disabled until the actual audio lifecycle and provider integration are implemented. Provider delivery and speech transcripts remain pending. Keep the history bounded and session-local, and clear it on document replacement.
 
 ## Build sequence
 
@@ -162,7 +170,7 @@ Follow with workbook parsing/rendering and retrieval in subsequent reviewable co
 - The user revised the PDF limits to 1,000 pages and 40 MB (40,000,000 bytes) per file. These override the attachment's initial PDF limits. Keep other resource limits centralized and validate them at parser, worker, broker, and server boundaries.
 - Keep document content, raw audio, image bytes, transcripts, and credentials out of persistent diagnostics and the spending ledger.
 - Document content and model tool arguments are untrusted. Neither can alter server policy or expand the available tools.
-- Use the existing isolated checkout. A separate worktree is unnecessary unless explicitly requested.
+- Keep Studio implementation on `feat/studio-interface`; do not merge it into `main` without the user choosing to do so.
 - Save and test reusable environment installation/startup instructions once the project has actual dependencies and services.
 - Report implemented, verified offline, verified live, and still pending capabilities distinctly.
 
