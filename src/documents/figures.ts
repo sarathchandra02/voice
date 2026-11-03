@@ -1,4 +1,4 @@
-import type { PdfDocument } from "./pdf";
+import type { ReaderDocument } from "./base";
 import type { Source } from "./model";
 import { figureMatch, figureNumber } from "./references";
 
@@ -17,9 +17,9 @@ type Scan = {
   candidates: Candidate[];
 };
 // Document-scoped progress survives questions, but never document replacement or reload.
-const scans = new WeakMap<PdfDocument, Map<string, Scan>>();
+const scans = new WeakMap<ReaderDocument, Map<string, Scan>>();
 export async function findFigure(
-  doc: PdfDocument,
+  doc: ReaderDocument,
   numberInput: string,
   start: number,
   end: number,

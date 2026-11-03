@@ -1,4 +1,4 @@
-import { searchExcerptOffset } from "./references";
+import { ReaderDocument } from "./base";
 import {
   getDocument,
   GlobalWorkerOptions,
@@ -6,43 +6,26 @@ import {
   type RenderTask,
 } from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import {
-  LIMITS,
-  LocalIndex,
-  type Chapter,
-  type Coverage,
-  type Source,
-} from "./model";
+import { LIMITS } from "./model";
 GlobalWorkerOptions.workerSrc = workerUrl;
 
-// One document identity is shared by independent foreground and research clients.
-export class PdfDocument {
-  readonly id = crypto.randomUUID();
-  readonly index = new LocalIndex();
-  readonly sources = new Map<string, Source>();
-  labels: string[] = [];
-  hasBookLabels = false;
-  chapters: Chapter[] = [];
-  disposed = false;
-  coverage: Coverage;
+export class PdfDocument extends ReaderDocument {
+  readonly kind = "pdf" as const;
+  readonly unit = "PDF page";
+  get pageCount() {
+    return this.pdf.numPages;
+  }
   private cache = new Map<number, { text: string; clipped: boolean }>();
-  private indexRunning = false;
-  private listeners = new Set<() => void>();
   private renders = new Set<RenderTask>();
   private constructor(
     readonly pdf: PDFDocumentProxy,
-    readonly name: string,
+    name: string,
   ) {
-    this.coverage = {
-      processed: 0,
-      readable: 0,
-      unreadable: 0,
-      failed: 0,
-      clipped: 0,
-      limited: false,
-      paused: false,
-      total: pdf.numPages,
-    };
+    super(name, pdf.numPages);
+  }
+  async size(page: number) {
+    this.check(page);
+    return (await this.pdf.getPage(page)).getViewport({ scale: 1 });
   }
   static async open(file: File, signal: AbortSignal) {
     if (file.size > LIMITS.fileBytes)
@@ -52,9 +35,7 @@ export class PdfDocument {
     const bytes = new Uint8Array(await file.arrayBuffer());
     signal.throwIfAborted();
     if (!new TextDecoder().decode(bytes.slice(0, 1024)).includes("%PDF-"))
-      throw new Error(
-        "Choose a valid PDF file. Excel support is coming in the next increment.",
-      );
+      throw new Error("Choose a valid PDF file.");
     const task = getDocument({
       data: bytes,
       enableXfa: false,
@@ -123,31 +104,6 @@ export class PdfDocument {
       signal.removeEventListener("abort", abort);
     }
   }
-  subscribe(listener: () => void) {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-  private notify() {
-    this.listeners.forEach((fn) => fn());
-  }
-  private check(page: number, signal?: AbortSignal) {
-    signal?.throwIfAborted();
-    if (this.disposed) throw new Error("This document has been cleared.");
-    if (!Number.isInteger(page) || page < 1 || page > this.pdf.numPages)
-      throw new Error("Invalid physical PDF page.");
-  }
-  setLabel(page: number, label: string) {
-    this.check(page);
-    if (!label.trim() || label.length > 40)
-      throw new Error("Use a book label between 1 and 40 characters.");
-    this.labels[page - 1] = label.trim();
-    this.hasBookLabels = true;
-    // Physical source locations remain stable; invalidate displayed label-bearing evidence.
-    this.sources.clear();
-    this.notify();
-  }
   async text(page: number, signal?: AbortSignal) {
     this.check(page, signal);
     const cached = this.cache.get(page);
@@ -179,40 +135,6 @@ export class PdfDocument {
     )
       this.cache.delete(this.cache.keys().next().value!);
     return result;
-  }
-  async read(
-    page: number,
-    signal?: AbortSignal,
-    options: { offset?: number; maxChars?: number; query?: string } = {},
-  ): Promise<Source> {
-    const result = await this.text(page, signal);
-    this.check(page, signal);
-    const offset = options.query
-      ? searchExcerptOffset(result.text, options.query)
-      : (options.offset ?? 0);
-    if (offset > result.text.length)
-      throw new Error("Text offset is beyond this page's extracted text.");
-    const limit = options.maxChars ?? 8000;
-    const end = Math.min(result.text.length, offset + limit);
-    const source: Source = {
-      id: crypto.randomUUID(),
-      documentId: this.id,
-      page,
-      label: this.labels[page - 1],
-      kind: "text",
-      text: result.text.slice(offset, end),
-      textStart: offset,
-      totalTextChars: result.text.length,
-      nextTextOffset: end < result.text.length ? end : undefined,
-      clipped: result.clipped || offset > 0 || end < result.text.length,
-    };
-    this.register(source);
-    return source;
-  }
-  private register(source: Source) {
-    this.sources.set(source.id, source);
-    while (this.sources.size > 12)
-      this.sources.delete(this.sources.keys().next().value!);
   }
   async render(
     page: number,
@@ -247,93 +169,11 @@ export class PdfDocument {
     }
     return viewport;
   }
-  async image(page: number, signal: AbortSignal): Promise<Source> {
-    const canvas = document.createElement("canvas");
-    try {
-      await this.render(page, canvas, 2, signal, 2000000, 1536);
-      let blob: Blob | null = null;
-      for (const quality of [0.88, 0.72, 0.5]) {
-        this.check(page, signal);
-        blob = await new Promise<Blob | null>((resolve) =>
-          canvas.toBlob(resolve, "image/jpeg", quality),
-        );
-        if (blob && blob.size <= LIMITS.imageBytes) break;
-      }
-      this.check(page, signal);
-      if (!blob || blob.size > LIMITS.imageBytes)
-        throw new Error(
-          "This page image exceeds the local image limit. Use its text or a simpler source.",
-        );
-      const digest = await crypto.subtle.digest(
-        "SHA-256",
-        await blob.arrayBuffer(),
-      );
-      this.check(page, signal);
-      const source: Source = {
-        id: crypto.randomUUID(),
-        documentId: this.id,
-        page,
-        label: this.labels[page - 1],
-        kind: "image",
-        image: blob,
-        width: canvas.width,
-        height: canvas.height,
-        hash: Array.from(new Uint8Array(digest), (b) =>
-          b.toString(16).padStart(2, "0"),
-        ).join(""),
-        clipped: false,
-      };
-      this.register(source);
-      return source;
-    } finally {
-      canvas.width = 0;
-      canvas.height = 0;
-    }
-  }
-  async startIndex() {
-    this.coverage.paused = false;
-    this.notify();
-    if (this.indexRunning || this.disposed) return;
-    this.indexRunning = true;
-    try {
-      while (
-        !this.disposed &&
-        !this.coverage.paused &&
-        this.coverage.processed < this.pdf.numPages
-      ) {
-        const page = this.coverage.processed + 1;
-        try {
-          const result = await this.text(page);
-          if (this.disposed) return;
-          this.index.add(page, result.text);
-          if (result.text) this.coverage.readable++;
-          else this.coverage.unreadable++;
-          if (result.clipped) this.coverage.clipped++;
-        } catch {
-          if (this.disposed) return;
-          this.coverage.failed++;
-        }
-        this.coverage.processed++;
-        this.coverage.limited = this.index.limited;
-        this.notify();
-        await new Promise((resolve) => setTimeout(resolve, 12));
-      }
-    } finally {
-      this.indexRunning = false;
-    }
-  }
-  pauseIndex() {
-    this.coverage.paused = true;
-    this.notify();
-  }
-  dispose() {
+  override dispose() {
     if (this.disposed) return;
-    this.disposed = true;
+    super.dispose();
     this.renders.forEach((task) => task.cancel());
     this.cache.clear();
-    this.sources.clear();
-    this.index.clear();
-    this.listeners.clear();
     void this.pdf.loadingTask.destroy();
   }
 }

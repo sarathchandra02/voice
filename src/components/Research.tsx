@@ -6,7 +6,7 @@ import {
   Image,
   ChevronRight,
 } from "lucide-react";
-import type { PdfDocument } from "../documents/pdf";
+import type { ReaderDocument } from "../documents/base";
 import type { ActivityDraft } from "./Companion";
 import BookIndex from "./BookIndex";
 import { resolvePage, type Coverage, type Source } from "../documents/model";
@@ -17,7 +17,7 @@ function Evidence({
   navigate,
 }: {
   source: Source;
-  doc: PdfDocument;
+  doc: ReaderDocument;
   navigate: (page: number) => void;
 }) {
   const [url, setUrl] = useState("");
@@ -36,11 +36,12 @@ function Evidence({
           ) : (
             <BookOpen size={14} />
           )}
-          {source.label ? `Book ${source.label} · ` : ""}PDF {source.page}
+          {source.label ? `Book ${source.label} · ` : ""}
+          {doc.shortUnit} {source.page}
         </span>
         <button
           title="Open this source in your reader"
-          aria-label={`Open PDF page ${source.page} in reader`}
+          aria-label={`Open ${doc.unit} ${source.page} in reader`}
           className="icon-button"
           onClick={() => {
             if (source.documentId === doc.id && doc.sources.has(source.id))
@@ -51,7 +52,7 @@ function Evidence({
         </button>
       </div>
       {url && (
-        <img src={url} alt={`Locally rendered PDF page ${source.page}`} />
+        <img src={url} alt={`Locally rendered ${doc.unit} ${source.page}`} />
       )}
       <p className="evidence-text">
         {source.text ||
@@ -59,6 +60,9 @@ function Evidence({
             ? "No readable text. Inspect this page as an image."
             : "Actual page image, prepared locally. No AI has inspected it.")}
       </p>
+      {source.previewNote && (
+        <p className="small muted">{source.previewNote}</p>
+      )}
       {source.clipped && (
         <p className="small muted">Excerpt clipped. Open the page for more.</p>
       )}
@@ -71,7 +75,7 @@ export default function Research({
   navigate,
   onActivity,
 }: {
-  doc: PdfDocument;
+  doc: ReaderDocument;
   navigate: (page: number) => void;
   onActivity: (event: ActivityDraft) => void;
 }) {
@@ -142,9 +146,10 @@ export default function Research({
   }
   function inspect(kind: "text" | "image", forcedPage?: number) {
     void run(
-      `${kind === "image" ? "View image" : "Read text"} · ${forcedPage !== undefined || mode === "pdf" ? "PDF page" : "book label"} ${forcedPage ?? entry}`,
+      `${kind === "image" ? "View image" : "Read text"} · ${forcedPage !== undefined || mode === "pdf" ? doc.unit : "book label"} ${forcedPage ?? entry}`,
       async (signal) => {
-        const page = forcedPage ?? resolvePage(entry, mode, doc.labels);
+        const page =
+          forcedPage ?? resolvePage(entry, mode, doc.labels, doc.unit);
         const source =
           kind === "image"
             ? await doc.image(page, signal)
@@ -229,7 +234,12 @@ export default function Research({
       )}
       <details className="chapters">
         <summary>
-          Chapters & bookmarks <span>{doc.chapters.length}</span>
+          {doc.kind === "pdf"
+            ? "Chapters & bookmarks"
+            : doc.kind === "docx"
+              ? "Document headings"
+              : "Slides"}{" "}
+          <span>{doc.chapters.length}</span>
         </summary>
         {doc.chapters.length ? (
           doc.chapters.map((chapter, i) => (
@@ -249,8 +259,8 @@ export default function Research({
           ))
         ) : (
           <p className="small muted">
-            No PDF outline was found. Search the book or inspect pages directly.
-            Automatic chapter and figure discovery is planned.
+            No outline was found. Search the document or inspect its pages
+            directly.
           </p>
         )}
       </details>
@@ -265,8 +275,8 @@ export default function Research({
             value={mode}
             onChange={(e) => setMode(e.target.value as "pdf" | "book")}
           >
-            <option value="pdf">PDF page</option>
-            <option value="book">Book label</option>
+            <option value="pdf">{doc.unit}</option>
+            {doc.kind === "pdf" && <option value="book">Book label</option>}
           </select>
           <input
             aria-label="Research page number"
@@ -285,7 +295,7 @@ export default function Research({
             View image
           </button>
         </div>
-        {cursor !== null && cursor < doc.pdf.numPages && (
+        {cursor !== null && cursor < doc.pageCount && (
           <button
             className="text-button next-research"
             onClick={() => {

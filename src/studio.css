@@ -1169,3 +1169,13 @@ button:hover {
   max-height: 90dvh;
   overflow-y: auto;
 }
+
+.document-format-note {
+  margin: 0;
+  padding: 10px 22px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #566650;
+  background: #f1f4e9;
+  border-bottom: 1px solid #dce3d4;
+}

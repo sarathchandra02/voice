@@ -23,3 +23,7 @@ To restore the hosted demo, redeploy that existing saved version using Sites, pr
 ## Voice-model picker experiment
 
 `experiment/voice-model-picker` builds on the figure-search experiment, adding separate provider keys and OpenAI/Gemini model choices. The new GPT-Live and Gemini adapters are explicitly experimental; see [model details and validation limits](voice-models.md). GitHub main and the working-demo tag remain unchanged.
+
+## Office documents
+
+`experiment/office-documents` builds on `experiment/voice-model-picker` (`7617934`). It adds local PPT, PPTX and DOCX reading. The previous deployed Sites source is `bfc6c56efa0728f45b9d0a5e809d8b42820f209b`; its saved version is `appgprj_6ae9c6678ef8819197fdc0a56f08942d~appgver_a04bf502a79481919932b370b9ba7286`. GitHub main and the model-picker branch are preserved. See [format behavior and limits](office-documents.md).

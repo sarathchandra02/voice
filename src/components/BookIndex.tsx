@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
-import type { PdfDocument } from "../documents/pdf";
+import type { ReaderDocument } from "../documents/base";
 import type { Coverage } from "../documents/model";
 
 function Pager({
@@ -44,7 +44,7 @@ export default function BookIndex({
   coverage,
   inspect,
 }: {
-  doc: PdfDocument;
+  doc: ReaderDocument;
   coverage: Coverage;
   inspect: (page: number) => void;
 }) {
@@ -70,7 +70,7 @@ function IndexContents({
   coverage,
   inspect,
 }: {
-  doc: PdfDocument;
+  doc: ReaderDocument;
   coverage: Coverage;
   inspect: (page: number) => void;
 }) {
@@ -119,14 +119,20 @@ function IndexContents({
       <button
         key={page}
         className="index-page-link"
-        aria-label={`Inspect indexed PDF page ${page}`}
+        aria-label={`Inspect indexed ${doc.unit} ${page}`}
         onClick={() => inspect(page)}
       >
-        <span>PDF {page}</span>
+        <span>
+          {doc.shortUnit} {page}
+        </span>
         <small>
           {doc.labels[page - 1]
             ? `Book ${doc.labels[page - 1]}`
-            : "Book label unknown"}
+            : doc.kind === "pdf"
+              ? "Book label unknown"
+              : doc.kind === "docx"
+                ? "Generated reading page"
+                : "Slide position"}
         </small>
         <ChevronRight size={13} />
       </button>
@@ -136,8 +142,9 @@ function IndexContents({
     <div className="book-index-body">
       <p className="book-index-name">{doc.name}</p>
       <p className="small muted">
-        {doc.pdf.numPages.toLocaleString("en-US")} physical pages ·{" "}
-        {doc.chapters.length} PDF bookmarks
+        {doc.pageCount.toLocaleString("en-US")} {doc.unit.toLowerCase()}s ·{" "}
+        {doc.chapters.length}{" "}
+        {doc.kind === "pdf" ? "PDF bookmarks" : "outline entries"}
       </p>
       <div
         className="index-sections"
@@ -171,8 +178,9 @@ function IndexContents({
       {section === "chapters" && (
         <div>
           <p className="small muted">
-            From the PDF’s outline. This may be incomplete; chapters are not
-            inferred from the text yet.
+            {doc.kind === "pdf"
+              ? "From the PDF’s outline. This may be incomplete; chapters are not inferred from the text yet."
+              : "From slide titles or Word headings. Source locations refer to this preview."}
           </p>
           {doc.chapters.length ? (
             doc.chapters.map((chapter, i) => (
@@ -183,7 +191,7 @@ function IndexContents({
               >
                 <span>{chapter.title}</span>
                 <small>
-                  PDF {chapter.page}
+                  {doc.shortUnit} {chapter.page}
                   {doc.labels[chapter.page - 1]
                     ? ` · Book ${doc.labels[chapter.page - 1]}`
                     : ""}
@@ -212,8 +220,9 @@ function IndexContents({
             />
           </label>
           <p className="small muted">
-            Book labels come from PDF metadata or your corrections. Repeated
-            labels keep their separate physical pages.
+            {doc.kind === "pdf"
+              ? "Book labels come from PDF metadata or your corrections. Repeated labels keep their separate physical pages."
+              : doc.previewNote}
           </p>
           <div className="index-page-list">
             {pageMap

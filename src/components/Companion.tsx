@@ -14,7 +14,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import type { PdfDocument } from "../documents/pdf";
+import type { ReaderDocument } from "../documents/base";
 import type { Source } from "../documents/model";
 import Research from "./Research";
 import { useVoice } from "../voice/useVoice";
@@ -38,7 +38,7 @@ function SourcePreview({
   provider = "OpenAI",
 }: {
   source: Source;
-  doc: PdfDocument;
+  doc: ReaderDocument;
   navigate: (page: number) => void;
   delivery?: "pending" | "accepted" | "failed" | "sent";
   provider?: string;
@@ -58,7 +58,8 @@ function SourcePreview({
       <summary>
         <FileImage size={13} />
         <span>
-          {source.label ? `Book ${source.label} · ` : ""}PDF page {source.page}
+          {source.label ? `Book ${source.label} · ` : ""}
+          {doc.unit} {source.page}
         </span>
         <span className="source-type">
           {source.kind === "image" ? "Page image" : "Text excerpt"}
@@ -70,6 +71,9 @@ function SourcePreview({
             ? `Rendered page image · JPEG${source.width && source.height ? ` · ${source.width} × ${source.height} pixels` : ""}. Includes the page’s text and visuals.`
             : `Extracted text · ${source.text?.length.toLocaleString() ?? 0} characters${source.clipped ? " · shortened excerpt" : ""}. No page image included.`}
         </p>
+        {source.previewNote && (
+          <p className="small muted">{source.previewNote}</p>
+        )}
         {source.label && (
           <p className="small muted">
             Book {source.label} is the printed label; PDF page {source.page} is
@@ -79,7 +83,7 @@ function SourcePreview({
         {url && (
           <img
             src={url}
-            alt={`Local context image of PDF page ${source.page}`}
+            alt={`Local context image of ${doc.unit} ${source.page}`}
           />
         )}
         {source.text &&
@@ -133,7 +137,7 @@ export default function Companion({
   toolsOpen,
   closeTools,
 }: {
-  doc: PdfDocument;
+  doc: ReaderDocument;
   navigate: (page: number) => void;
   contextPage: number | null;
   contextState: string;
@@ -205,7 +209,7 @@ export default function Companion({
     lastPrepared.current = key;
     append({
       kind: "context",
-      title: `Reading context · PDF page ${preparedSource.page}`,
+      title: `Reading context · ${doc.unit} ${preparedSource.page}`,
       detail:
         "You settled on this page. Its image is ready locally, but has not been sent to AI.",
       sources: [preparedSource],
@@ -320,7 +324,7 @@ export default function Companion({
       <div className="reading-context" title={contextState}>
         <span className="status-dot" />
         {contextPage
-          ? `With you on PDF page ${contextPage}`
+          ? `With you on ${doc.unit} ${contextPage}`
           : "Opening your page…"}
       </div>
       <div className="voice-dock">

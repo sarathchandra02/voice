@@ -1,3 +1,11 @@
+# Office documents — 3 November 2026
+
+Added browser-local PPT, PPTX and DOCX imports on `experiment/office-documents`. PowerPoint opens as static slides and Word as generated reading pages. The previous model-picker branch and stable main remain unchanged.
+
+Validation: 32 unit tests and all 51 browser tests passed (83 total). The browser run includes the full existing PDF and voice regression suite, actual binary PPT/PPTX/DOCX fixtures, embedded artwork pixel checks, long Word document tail retrieval, tables and Unicode, source provenance, cancellation/replacement, import bounds, and simulated Office voice sessions. TypeScript, production build, formatting and whitespace checks passed. Voice provider calls are simulated; no paid/live provider test was made. See [format support and limits](office-documents.md).
+
+---
+
 # Voice-model picker — 3 November 2026
 
 Added provider-aware model selection, separate provider key storage, cancelable setup, requested/confirmed model labels, and experimental GPT-Live/Gemini adapters on `experiment/voice-model-picker`. GitHub main remains the earlier stable demo.

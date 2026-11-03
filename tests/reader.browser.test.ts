@@ -3,7 +3,9 @@ const file = "public/fixtures/book.pdf";
 const appOrigin = `http://127.0.0.1:${process.env.TEST_PORT || "5173"}`;
 async function open(page: Page, path = file) {
   await page.goto("/");
-  await page.getByLabel("Open PDF file", { exact: true }).setInputFiles(path);
+  await page
+    .getByLabel("Open document file", { exact: true })
+    .setInputFiles(path);
   await expect(
     page.getByRole("img", { name: "PDF page 1", exact: true }),
   ).toBeVisible();
@@ -148,7 +150,7 @@ test("replace during retrieval discards old sources, and clear releases the read
   await page.getByLabel("Research page number", { exact: true }).fill("37");
   await page.getByRole("button", { name: "View image", exact: true }).click();
   await page
-    .getByLabel("Open PDF file", { exact: true })
+    .getByLabel("Open document file", { exact: true })
     .setInputFiles("public/fixtures/replacement.pdf");
   await expect(page.getByTestId("reader-position")).toContainText(
     "PDF page 1 of 1",
@@ -161,18 +163,22 @@ test("replace during retrieval discards old sources, and clear releases the read
     }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Clear document" }).click();
-  await expect(page.getByRole("button", { name: /Open a PDF/ })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Open a document/ }),
+  ).toBeVisible();
   await expect(page.locator("canvas")).toHaveCount(0);
 });
 test("invalid files leave the picker usable", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Open PDF file", { exact: true }).setInputFiles({
+  await page.getByLabel("Open document file", { exact: true }).setInputFiles({
     name: "fake.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("not a pdf"),
   });
   await expect(page.getByRole("alert")).toContainText("valid PDF");
-  await expect(page.getByRole("button", { name: /Open a PDF/ })).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: /Open a document/ }),
+  ).toBeEnabled();
 });
 test("mobile layout keeps local reading and research controls reachable", async ({
   page,
@@ -394,7 +400,7 @@ test("page index preserves duplicate labels and is cleared on document replaceme
     }),
   ).toContainText("Book 1");
   await page
-    .getByLabel("Open PDF file", { exact: true })
+    .getByLabel("Open document file", { exact: true })
     .setInputFiles("public/fixtures/replacement.pdf");
   await expect(page.getByTestId("reader-position")).toContainText(
     "PDF page 1 of 1",

@@ -17,15 +17,16 @@ import {
   ArrowRight,
   MoreHorizontal,
 } from "lucide-react";
-import type { PdfDocument } from "./documents/pdf";
+import type { ReaderDocument } from "./documents/base";
 import Reader from "./components/Reader";
 import Companion from "./components/Companion";
 import ConnectionSettings from "./components/ConnectionSettings";
+import { openDocument, DOCUMENT_ACCEPT } from "./documents/open";
 import { LIMITS, type Source } from "./documents/model";
 
 export default function App() {
-  const [doc, setDoc] = useState<PdfDocument | null>(null);
-  const liveDoc = useRef<PdfDocument | null>(null);
+  const [doc, setDoc] = useState<ReaderDocument | null>(null);
+  const liveDoc = useRef<ReaderDocument | null>(null);
   const opening = useRef<AbortController | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const [page, setPage] = useState(1);
@@ -36,6 +37,7 @@ export default function App() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [preparedSource, setPreparedSource] = useState<Source | null>(null);
   const [loading, setLoading] = useState(false);
+  const [openingMessage, setOpeningMessage] = useState("");
   const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
   const [contextState, setContextState] = useState(
@@ -64,9 +66,10 @@ export default function App() {
     opening.current = abort;
     setLoading(true);
     try {
-      const { PdfDocument } = await import("./documents/pdf");
-      abort.signal.throwIfAborted();
-      const next = await PdfDocument.open(file, abort.signal);
+      setOpeningMessage("Opening your document…");
+      const next = await openDocument(file, abort.signal, (message) => {
+        if (!abort.signal.aborted) setOpeningMessage(message);
+      });
       if (abort.signal.aborted) {
         next.dispose();
         return;
@@ -77,7 +80,9 @@ export default function App() {
       void next.startIndex();
     } catch (error) {
       if (!abort.signal.aborted) {
-        setError((error as Error).message || "This PDF could not be opened.");
+        setError(
+          (error as Error).message || "This document could not be opened.",
+        );
         setLoading(false);
       }
     }
@@ -208,8 +213,8 @@ export default function App() {
       <input
         ref={picker}
         type="file"
-        accept="application/pdf,.pdf"
-        aria-label="Open PDF file"
+        accept={DOCUMENT_ACCEPT}
+        aria-label="Open document file"
         className="file-input"
         onChange={(e) => {
           const file = e.target.files?.[0];
@@ -217,7 +222,9 @@ export default function App() {
           if (file) void open(file);
         }}
       />
-      {dragging && <div className="drop-overlay">Drop your PDF to open it</div>}
+      {dragging && (
+        <div className="drop-overlay">Drop your document to open it</div>
+      )}
       {!doc ? (
         <main className="welcome">
           <div className="welcome-copy">
@@ -241,12 +248,12 @@ export default function App() {
             <span className="upload-icon">
               <FileUp size={27} />
             </span>
-            <strong>{loading ? "Opening your document…" : "Open a PDF"}</strong>
-            <span>Choose a file or drop it here</span>
+            <strong>{loading ? openingMessage : "Open a document"}</strong>
+            <span>PDF, PowerPoint or Word · choose a file or drop it here</span>
             <small>
               Up to {LIMITS.fileBytes / 1_000_000} MB ·{" "}
-              {LIMITS.pages.toLocaleString("en-US")} pages · Excel support is on
-              the way
+              {LIMITS.pages.toLocaleString("en-US")} pages or slides · .pdf,
+              .ppt, .pptx, .docx
             </small>
             <span className="upload-arrow">
               <ArrowRight size={20} />
@@ -274,16 +281,16 @@ export default function App() {
               <ShieldCheck size={19} />
               <h3>Local from the start</h3>
               <p>
-                Your PDF is read and indexed in this browser. No account needed
-                for local reading.
+                Your document is read and indexed in this browser. No account
+                needed for local reading.
               </p>
             </div>
             <div>
               <Headphones size={19} />
               <h3>Talk through your book</h3>
               <p>
-                Connect your OpenAI key to discuss pages and explore sources by
-                voice.
+                Connect your voice provider key to discuss pages and explore
+                sources by voice.
               </p>
             </div>
           </div>
@@ -384,7 +391,7 @@ export default function App() {
               <span className="status-dot" />
               Reader preview
             </span>
-            <span>Local PDF tools · OpenAI voice available</span>
+            <span>Local document tools · Voice available</span>
           </footer>
         </main>
       )}

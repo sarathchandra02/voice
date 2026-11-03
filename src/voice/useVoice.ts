@@ -1,6 +1,6 @@
 import { AdditionalVoice } from "./additional";
 import { useEffect, useRef, useState } from "react";
-import type { PdfDocument } from "../documents/pdf";
+import type { ReaderDocument } from "../documents/base";
 import { INITIAL_VOICE, RealtimeVoice, type VoiceActivity } from "./realtime";
 import {
   CONNECTION_KEY,
@@ -12,7 +12,7 @@ import {
 } from "./settings";
 
 export function useVoice(
-  doc: PdfDocument,
+  doc: ReaderDocument,
   page: number | null,
   onActivity: (event: VoiceActivity) => void,
 ) {

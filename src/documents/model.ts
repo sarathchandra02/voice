@@ -13,6 +13,8 @@ export const LIMITS = {
 export type PageRef = { documentId: string; page: number; label: string };
 export type Source = PageRef & {
   id: string;
+  location?: string;
+  previewNote?: string;
   kind: "text" | "image";
   text?: string;
   image?: Blob;
@@ -39,13 +41,16 @@ export function resolvePage(
   input: string,
   mode: "pdf" | "book",
   labels: string[],
+  unit = "PDF page",
 ): number {
   if (mode === "pdf") {
     if (!/^\d+$/.test(input.trim()))
-      throw new Error("Enter a whole physical PDF page number.");
+      throw new Error(`Enter a whole ${unit.toLowerCase()} number.`);
     const page = Number(input);
     if (page < 1 || page > labels.length)
-      throw new Error(`Choose a PDF page between 1 and ${labels.length}.`);
+      throw new Error(
+        `Choose a ${unit.toLowerCase()} between 1 and ${labels.length}.`,
+      );
     return page;
   }
   const matches = labels.flatMap((label, i) =>

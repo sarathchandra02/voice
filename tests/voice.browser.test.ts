@@ -154,10 +154,13 @@ async function simulate(
   });
   await page.goto("/");
   await page
-    .getByLabel("Open PDF file", { exact: true })
+    .getByLabel("Open document file", { exact: true })
     .setInputFiles(options.fixture || "public/fixtures/book.pdf");
   await expect(
-    page.getByRole("img", { name: "PDF page 1", exact: true }),
+    page.getByRole("img", {
+      name: /^(PDF page|Slide|Reading page) 1$/,
+      exact: true,
+    }),
   ).toBeVisible();
 }
 async function start(page: Page) {
@@ -406,7 +409,7 @@ test("document replacement stops capture and rejects late provider events", asyn
   await start(page);
   const response = await question(page);
   await page
-    .getByLabel("Open PDF file", { exact: true })
+    .getByLabel("Open document file", { exact: true })
     .setInputFiles("public/fixtures/replacement.pdf");
   await expect(
     page.getByRole("button", { name: "Start voice", exact: true }),
@@ -1348,3 +1351,70 @@ test("the Gemini capture worklet produces bounded PCM frames in a real browser a
   });
   expect(result).toEqual({ length: 3200, nonzero: true });
 });
+
+for (const [file, unit] of [
+  ["slides.ppt", "Slide"],
+  ["reading.docx", "Reading page"],
+]) {
+  test(`${file} voice session sends correctly labeled text and preview images, and replacement stops capture`, async ({
+    page,
+  }) => {
+    await simulate(page, { fixture: `tests/fixtures/${file}` });
+    await start(page);
+    const response = await question(page);
+    await emit(page, {
+      type: "response.done",
+      response: {
+        ...response,
+        status: "completed",
+        output: [
+          {
+            type: "function_call",
+            call_id: "office_text",
+            name: "current_page",
+            arguments: '{"format":"text"}',
+          },
+          {
+            type: "function_call",
+            call_id: "office_image",
+            name: "current_page",
+            arguments: '{"format":"image"}',
+          },
+        ],
+      },
+    });
+    await expect(
+      page.getByText("Page image sent", { exact: true }),
+    ).toBeVisible();
+    const items = await sent(page, "conversation.item.create");
+    const output = items
+      .filter((e: any) => e.item.type === "function_call_output")
+      .map((e: any) => JSON.parse(e.item.output));
+    expect(output).toHaveLength(2);
+    expect(output[0].location_unit).toBe(unit);
+    expect(output[0].sources[0].text.length).toBeGreaterThan(10);
+    expect(output[1].sources[0].location).toBe(`${unit} 1`);
+    expect(output[1].preview_note).toContain("preview");
+    const image = items.find((e: any) =>
+      e.item.content?.some((p: any) => p.type === "input_image"),
+    );
+    expect(image.item.content[0].text).toContain(`${unit} 1`);
+    expect(image.item.content[0].text).not.toContain("PDF");
+    expect(image.item.content[1].image_url).toMatch(
+      /^data:image\/jpeg;base64,/,
+    );
+    await page
+      .getByLabel("Open document file", { exact: true })
+      .setInputFiles("public/fixtures/replacement.pdf");
+    await expect(
+      page.getByRole("img", { name: "PDF page 1", exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() =>
+        (window as any).voiceTest.tracks.every(
+          (track: any) => track.readyState === "ended",
+        ),
+      ),
+    ).toBe(true);
+  });
+}

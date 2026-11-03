@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Minus, Plus, ScanLine } from "lucide-react";
-import type { PdfDocument } from "../documents/pdf";
+import type { ReaderDocument } from "../documents/base";
 import { resolvePage } from "../documents/model";
 
 export default function Reader({
@@ -9,7 +9,7 @@ export default function Reader({
   navigate,
   onRendered,
 }: {
-  doc: PdfDocument;
+  doc: ReaderDocument;
   page: number;
   navigate: (page: number) => void;
   onRendered: (page: number | null) => void;
@@ -17,6 +17,29 @@ export default function Reader({
   const host = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1.1);
+  const minScale = doc.kind === "pdf" ? 0.5 : 0.1;
+  useEffect(() => {
+    if (doc.kind === "pdf") return;
+    let cancelled = false;
+    void doc
+      .size(1)
+      .then((size) => {
+        if (!cancelled && !doc.disposed)
+          setScale(
+            Math.min(
+              1.1,
+              Math.max(
+                0.1,
+                ((scroller.current?.clientWidth || 650) - 56) / size.width,
+              ),
+            ),
+          );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [doc]);
   const [entry, setEntry] = useState(String(page));
   const [mode, setMode] = useState<"pdf" | "book">("pdf");
   const [error, setError] = useState("");
@@ -31,7 +54,7 @@ export default function Reader({
     const abort = new AbortController();
     const canvas = document.createElement("canvas");
     canvas.setAttribute("role", "img");
-    canvas.setAttribute("aria-label", `PDF page ${page}`);
+    canvas.setAttribute("aria-label", `${doc.unit} ${page}`);
     setRendering(true);
     setError("");
     setText("");
@@ -73,7 +96,7 @@ export default function Reader({
   function go(event: React.FormEvent) {
     event.preventDefault();
     try {
-      const target = resolvePage(entry, mode, doc.labels);
+      const target = resolvePage(entry, mode, doc.labels, doc.unit);
       setError("");
       navigate(target);
     } catch (error) {
@@ -98,8 +121,10 @@ export default function Reader({
               value={mode}
               onChange={(e) => setMode(e.target.value as "pdf" | "book")}
             >
-              <option value="pdf">PDF page</option>
-              <option value="book">Book label</option>
+              <option value="pdf">
+                {doc.kind === "docx" ? "Page" : doc.unit}
+              </option>
+              {doc.kind === "pdf" && <option value="book">Book label</option>}
             </select>
             <input
               aria-label="Page number"
@@ -107,7 +132,7 @@ export default function Reader({
               onChange={(e) => setEntry(e.target.value)}
               maxLength={40}
             />
-            <span className="page-total">/ {doc.pdf.numPages}</span>
+            <span className="page-total">/ {doc.pageCount}</span>
             <button className="text-button" type="submit">
               Go
             </button>
@@ -115,7 +140,7 @@ export default function Reader({
           <button
             className="icon-button"
             aria-label="Next page"
-            disabled={page === doc.pdf.numPages}
+            disabled={page === doc.pageCount}
             onClick={() => navigate(page + 1)}
           >
             <ChevronRight size={17} />
@@ -125,8 +150,8 @@ export default function Reader({
           <button
             className="icon-button"
             aria-label="Zoom out"
-            disabled={scale <= 0.5}
-            onClick={() => setScale(Math.max(0.5, scale - 0.2))}
+            disabled={scale <= minScale}
+            onClick={() => setScale(Math.max(minScale, scale - 0.2))}
           >
             <Minus size={16} />
           </button>
@@ -144,17 +169,17 @@ export default function Reader({
             aria-label="Fit width"
             onClick={() => {
               const abort = new AbortController();
-              doc.pdf
-                .getPage(page)
+              doc
+                .size(page)
                 .then((p) => {
                   if (!doc.disposed && !abort.signal.aborted)
                     setScale(
                       Math.min(
                         2.5,
                         Math.max(
-                          0.5,
+                          minScale,
                           ((scroller.current?.clientWidth || 650) - 56) /
-                            p.getViewport({ scale: 1 }).width,
+                            p.width,
                         ),
                       ),
                     );
@@ -170,8 +195,8 @@ export default function Reader({
         </div>
       </div>
       <div className="page-caption" data-testid="reader-position">
-        {doc.labels[page - 1] ? `Book ${doc.labels[page - 1]} · ` : ""}PDF page{" "}
-        {page} of {doc.pdf.numPages}
+        {doc.labels[page - 1] ? `Book ${doc.labels[page - 1]} · ` : ""}
+        {doc.unit} {page} of {doc.pageCount}
         <span>
           {rendering
             ? "Rendering…"
@@ -180,6 +205,11 @@ export default function Reader({
               : "Local document"}
         </span>
       </div>
+      {doc.previewNote && (
+        <p className="document-format-note" data-testid="format-note">
+          {doc.previewNote}
+        </p>
+      )}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -201,37 +231,39 @@ export default function Reader({
               "No readable text on this page. Use its image for visual inspection."}
           </pre>
         </details>
-        <details>
-          <summary>Page numbering</summary>
-          <p className="small muted">
-            {doc.hasBookLabels
-              ? "Book labels come from the PDF or your local corrections."
-              : "This PDF has no book labels. Physical PDF numbers are shown. You can label individual pages locally."}
-          </p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              try {
-                doc.setLabel(page, label);
-                setEntry(mode === "book" ? label : String(page));
-                setError("");
-              } catch (error) {
-                setError((error as Error).message);
-              }
-            }}
-          >
-            <label>
-              Book label for PDF page {page}
-              <input
-                aria-label="Correct book label"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                maxLength={40}
-              />
-            </label>
-            <button type="submit">Save label</button>
-          </form>
-        </details>
+        {doc.kind === "pdf" && (
+          <details>
+            <summary>Page numbering</summary>
+            <p className="small muted">
+              {doc.hasBookLabels
+                ? "Book labels come from the PDF or your local corrections."
+                : "This PDF has no book labels. Physical PDF numbers are shown. You can label individual pages locally."}
+            </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                try {
+                  doc.setLabel(page, label);
+                  setEntry(mode === "book" ? label : String(page));
+                  setError("");
+                } catch (error) {
+                  setError((error as Error).message);
+                }
+              }}
+            >
+              <label>
+                Book label for PDF page {page}
+                <input
+                  aria-label="Correct book label"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  maxLength={40}
+                />
+              </label>
+              <button type="submit">Save label</button>
+            </form>
+          </details>
+        )}
       </div>
     </section>
   );
