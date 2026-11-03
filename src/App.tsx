@@ -173,7 +173,7 @@ export default function App() {
         <div className="topbar-actions">
           <div className="privacy">
             <ShieldCheck size={14} />
-            <span>On your device</span>
+            <span>Browser workspace</span>
           </div>
           {doc && (
             <div className="document-actions">
@@ -280,10 +280,10 @@ export default function App() {
             </div>
             <div>
               <Headphones size={19} />
-              <h3>A voice companion, next</h3>
+              <h3>Talk through your book</h3>
               <p>
-                The reading foundation is here. Voice and AI answers are the
-                next step.
+                Connect your OpenAI key to discuss pages and explore sources by
+                voice.
               </p>
             </div>
           </div>
@@ -369,7 +369,7 @@ export default function App() {
                   key={doc.id}
                   doc={doc}
                   navigate={researchNavigate}
-                  contextPage={renderedPage}
+                  contextPage={renderedPage === page ? renderedPage : null}
                   contextState={contextState}
                   preparedSource={preparedSource}
                   toolsOpen={toolsOpen}
@@ -384,7 +384,7 @@ export default function App() {
               <span className="status-dot" />
               Reader preview
             </span>
-            <span>Local tools available · Voice not connected</span>
+            <span>Local PDF tools · OpenAI voice available</span>
           </footer>
         </main>
       )}

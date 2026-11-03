@@ -6,13 +6,13 @@ Build a reader-first application where a person opens a PDF or workbook locally 
 
 The selected repository, `sarathchandra02/voice`, was verified empty. This plan is for a fresh implementation there. The uploaded specification is the product reference. Its appendix describes a separate prototype; that application's deployment, source, ownership, ledger, and reported outcomes have not been verified in this workspace. They are not evidence of implemented functionality or authorization to use an existing budget.
 
-Current delivery: the first PDF reader/research increment has been implemented. See README.md and validation.md for the precise verified subset and remaining work. Excel, voice, and server/provider integration are still planned. No provider calls or production deployment have been made.
+Current delivery: the first PDF reader/research increment has been implemented. See README.md and validation.md for the precise verified subset and remaining work. Studio voice integration now implements OpenAI Realtime WebRTC, microphone lifecycle, transcripts, typed questions, and read-only document tools. See voice.md for the transport, evidence lifecycle, bounds, and live-validation limits. Excel and hosted-server integration remain planned. No paid provider calls or production deployment have been made.
 
 ## Current prototype direction — Studio
 
 The user selected Studio from the three isolated design mocks and requested implementation on a separate branch. `feat/studio-interface` applies it to the working reader: soft green workspace, approximately 60% document width, compact activity bubbles, system sans-serif type, horizontal voice dock, and tools behind the three-dot button. Existing reader and background retrieval behavior is retained.
 
-For the current personal prototype, the user's later browser-local, bring-your-own-key direction supersedes the original hosted authentication/server requirements below. One-click connection settings now save, update, and remove an optional OpenAI key in localStorage. The key is unencrypted, explicitly unverified, and unused until provider integration is implemented. Setup does not appear automatically. Documents and history are still session-only; local document persistence remains pending.
+For the current personal prototype, the user's later browser-local, bring-your-own-key direction supersedes the original hosted authentication/server requirements below. One-click connection settings now save, update, and remove an optional OpenAI key in localStorage. The key is unencrypted and unverified on save; Start voice explicitly uses it to mint an OpenAI ephemeral Realtime credential directly from the browser. Setup does not appear automatically. Documents and history are still session-only; local document persistence remains pending.
 
 Live voice integration must verify current OpenAI model/protocol support and browser connection requirements before choosing a transport. Do not assume the older server-mediated design or any model name from the attachment is the selected prototype implementation. Keep explicit start/stop, bounded document tools, inspectable evidence, and usage visibility. The original server/authentication/ledger milestones below are retained as future hosted-version design, not prerequisites for this local prototype.
 
@@ -23,7 +23,7 @@ Live voice integration must verify current OpenAI model/protocol support and bro
 - **Workbooks:** worker-isolated parser supporting XLSX and a precisely documented binary XLS variant. Evaluate the current official SheetJS distribution, maintenance, license, and security fixes before pinning it. Do not adopt an outdated package simply because it is available from the default registry.
 - **Server:** Node.js with a typed HTTP/WebSocket boundary. Same-origin authenticated access, strict event validation, and server-only provider configuration.
 - **Durability:** SQLite for initial single-server development, with transactional leases and an append-only reservation ledger. Keep a storage interface so a deployment requiring multiple server instances can use a suitable shared transactional database.
-- **Voice:** begin with server-mediated WebSockets so every model response remains subject to admission. Browser capture and playback use dedicated audio modules and bounded queues. Treat acoustic interruption as a measured engineering requirement; do not assume a simple volume threshold is sufficient.
+- **Voice:** the current personal prototype uses OpenAI Realtime WebRTC with explicit response creation, browser microphone ownership, and bounded local document tools. Server-mediated admission remains a future hosted-version design. Treat acoustic interruption as a measured engineering requirement; simulator results do not establish real speaker/echo performance.
 - **Testing:** unit and integration tests plus Playwright browser checks using synthetic documents and a provider simulator that rejects real network calls. Physical-device tests are a separate release gate.
 - **Provider:** choose and pin the model and protocol only after checking current official capabilities, schemas, pricing, and account access. Model names and rates in the attachment are reference claims, not verified configuration.
 
@@ -94,7 +94,7 @@ Use approximately 60% of the desktop workspace for the document. The companion i
 
 The timeline should make actual inputs and outcomes inspectable without exposing internal prompts or hidden reasoning. Distinguish local page preparation, confirmed provider delivery, user transcripts, assistant transcripts, and retrieved sources. Only show events backed by their actual lifecycle; preparation never implies delivery. Expandable source chips expose relevant page images or excerpts. Background lookups preserve the visible book position. New activity must not pull a user away from older conversation entries.
 
-The current increment implements the layout, real local activity, source inspection, and menu. Live voice controls remain disabled until the actual audio lifecycle and provider integration are implemented. Provider delivery and speech transcripts remain pending. Keep the history bounded and session-local, and clear it on document replacement.
+The current increment implements the layout, real local activity, source inspection, and menu. Live voice controls, provider delivery receipts, and speech transcripts are implemented on feat/studio-realtime-voice; live acoustic and model-answer acceptance remain pending. Keep the history bounded and session-local, and clear it on document replacement.
 
 ## Build sequence
 

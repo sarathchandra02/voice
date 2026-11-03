@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Check, KeyRound, Settings2, X } from "lucide-react";
 
-const CONNECTION_KEY = "margin.openai-key.v1";
+import {
+  CONNECTION_KEY,
+  MODEL_KEY,
+  MODELS,
+  OPEN_SETTINGS,
+  SETTINGS_CHANGED,
+  readConnection,
+} from "../voice/settings";
 
 export default function ConnectionSettings() {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -11,9 +18,11 @@ export default function ConnectionSettings() {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [model, setModel] = useState<string>(MODELS[0]);
   function refresh() {
     try {
       setConfigured(Boolean(localStorage.getItem(CONNECTION_KEY)));
+      setModel(readConnection().model);
     } catch {
       setConfigured(false);
       setError(
@@ -27,7 +36,15 @@ export default function ConnectionSettings() {
       if (event.key === CONNECTION_KEY || event.key === null) refresh();
     };
     window.addEventListener("storage", changed);
-    return () => window.removeEventListener("storage", changed);
+    const show = () => {
+      refresh();
+      setOpen(true);
+    };
+    window.addEventListener(OPEN_SETTINGS, show);
+    return () => {
+      window.removeEventListener("storage", changed);
+      window.removeEventListener(OPEN_SETTINGS, show);
+    };
   }, []);
   useEffect(() => {
     if (open && !dialog.current?.open) dialog.current?.showModal();
@@ -48,6 +65,7 @@ export default function ConnectionSettings() {
     }
     try {
       localStorage.setItem(CONNECTION_KEY, key);
+      window.dispatchEvent(new Event(SETTINGS_CHANGED));
       setConfigured(true);
       setDraft("");
       setError("");
@@ -61,6 +79,7 @@ export default function ConnectionSettings() {
   function remove() {
     try {
       localStorage.removeItem(CONNECTION_KEY);
+      window.dispatchEvent(new Event(SETTINGS_CHANGED));
       setConfigured(false);
       setDraft("");
       setError("");
@@ -138,8 +157,27 @@ export default function ConnectionSettings() {
             />
           </label>
           <div className="connection-row">
-            <span>Voice model</span>
-            <span>Not connected</span>
+            <label htmlFor="voice-model">Voice model</label>
+            <select
+              id="voice-model"
+              value={model}
+              onChange={(event) => {
+                try {
+                  localStorage.setItem(MODEL_KEY, event.target.value);
+                  setModel(event.target.value);
+                  window.dispatchEvent(new Event(SETTINGS_CHANGED));
+                  setNotice("Model saved. Start voice to connect.");
+                } catch {
+                  setError("Your browser could not save the model.");
+                }
+              }}
+            >
+              {MODELS.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
           </div>
           <p className="connection-storage-note">
             Saved unencrypted in this browser. Scripts running on this site can
@@ -147,8 +185,10 @@ export default function ConnectionSettings() {
             longer need it.
           </p>
           <p className="connection-availability">
-            Live voice is still being built. Saving a key does not validate it,
-            start recording, or send anything to OpenAI.
+            Saving a key makes no API request. Start voice connects to OpenAI
+            and sends microphone audio and requested document excerpts or
+            images. API usage is billed to your OpenAI account. Changing
+            settings stops an active session.
           </p>
           {error && (
             <p className="error" role="alert">

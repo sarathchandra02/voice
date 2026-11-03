@@ -1,8 +1,8 @@
 # Margin — PDF and Excel Voice Companion
 
-The Studio interface for a local document reader with a conversation-style companion and independent research tools. Open a PDF, keep your place, and inspect a different page or chapter without moving your view. The desktop reader uses 60% of the workspace; the companion shows a scrollable activity history above an idle voice bubble. Open the three-dot options button to use search, chapter lookup, and page inspection.
+The Studio interface for a local document reader with a conversation-style companion and independent research tools. Open a PDF, keep your place, and inspect a different page or chapter without moving your view. The desktop reader uses 60% of the workspace; the companion shows a scrollable activity history above the voice controls. Open the three-dot options button to use search, chapter lookup, and page inspection.
 
-**Status:** PDF reader/research foundation. Excel, live voice, and provider integration are not implemented. This personal prototype has no login or server. No microphone or AI connection is opened by this version.
+**Status:** Studio PDF reader with OpenAI Realtime voice integration. Start/mute/stop, spoken responses, transcripts, typed questions, and background document tools are implemented. Automated provider-simulation tests cover the integration; live microphone/account acceptance is still pending. This personal prototype has no login or application server. Nothing connects to OpenAI until you click Start voice. Excel remains pending.
 
 ![Studio reader and independent research panel](docs/screenshots/studio-reader.png)
 
@@ -39,11 +39,11 @@ npm run dev
 - A session-only activity history of settled-page images, manual lookup requests, retrieved sources, and failures. Expand source chips to inspect local inputs. Prepared images are explicitly labelled as not sent to AI.
 - Research tools in a keyboard-accessible three-dot options dialog. Escape closes it and restores focus. New activity preserves your history scroll position and offers a jump-to-latest button.
 
-Book labels are metadata, not verified OCR of printed numbers. Outline entries are bookmarks, not a guaranteed chapter catalog. Keyword search is not semantic search. The research panel exposes the local tools that the future assistant will use; it does not produce AI answers or claim to understand figures.
+Book labels are metadata, not verified OCR of printed numbers. Outline entries are bookmarks, not a guaranteed chapter catalog. Keyword search is not semantic search. Manual research stays local. During a connected voice conversation, the assistant can request these tools and receive their sources without moving the reader. Image receipt alone is not evidence of correct figure understanding.
 
 ## Connection settings
 
-The top-right settings button opens optional OpenAI key setup in one click. Save once, update, or remove the key there; setup never interrupts reading. The key is stored unencrypted in this browser's localStorage and is accessible to scripts on this site. It is not displayed again after saving. Saving does not verify the key or contact OpenAI; live voice remains disconnected.
+The top-right settings button opens optional OpenAI key setup in one click. Save once, update, or remove the key there; setup never interrupts reading. The key is stored unencrypted in this browser's localStorage and is accessible to scripts on this site. It is not displayed again after saving. Saving does not verify the key or contact OpenAI. Start voice uses it to connect to OpenAI; microphone audio and requested sources are then sent to OpenAI and billed to your API account. See [voice setup and lifecycle](docs/voice.md). The default model is `gpt-realtime-2.1`, with alternatives in settings.
 
 Documents, indexes, and conversation activity remain session-only. Browser persistence for documents is not implemented.
 
@@ -64,7 +64,7 @@ Browser tests use `/usr/bin/chromium` by default in this cloud machine. Set `CHR
 
 See the [implementation plan](docs/implementation-plan.md) for the complete release sequence.
 
-- Excel parsing, workbook tools, natural voice, and provider compatibility remain pending. Authentication and server-owned spending controls belong to a possible future hosted version.
+- Excel parsing and workbook tools remain pending. OpenAI Realtime is the implemented voice provider; other providers are not supported. Authentication and server-owned spending controls belong to a possible future hosted version.
 - Automatic chapter inference, diagram discovery by description/order, OCR, crops, semantic search, and multi-source AI comparison are not implemented.
 - Labels can be corrected per page; range/offset correction, mapping provenance, and inferred printed-number extraction remain pending.
 - The first PDF page currently waits for label/outline discovery. Very complex outlines and large files need profiling and a foreground-first loading refinement.
@@ -72,7 +72,7 @@ See the [implementation plan](docs/implementation-plan.md) for the complete rele
 - Index term/posting counts and text caches are bounded, but fixed-memory index arenas and a strict four-page PDF resource scheduler are not implemented. The 1,000-page ceiling is a guard, not a performance certification. Full hostile-document and memory-stress validation remains pending.
 - A pixel/byte bound limits page images; crop-based recovery for pages that exceed the image limit is pending.
 - The local source registry retains the most recent twelve sources. Conversation activity retains thirty entries and at most six image previews, separately from that registry. Older image previews are released; document replacement clears both. Document data and activity are not persisted; an optional API key is stored separately as described above.
-- The voice orb is idle and voice controls are disabled. Current history contains real local document activity, not speech transcripts, model responses, or provider delivery acknowledgments. Those will be connected in the voice milestone.
+- Voice sessions have a 20-minute limit, eight document lookups and three images per question, and reported token counts. These are operational bounds, not a durable spending cap. Live browser/account and acoustic validation remain pending.
 - Chromium desktop and a mobile-sized viewport were tested. Physical phone, microphone, loudspeaker, Safari, Firefox, and live visual-answer acceptance tests have not run.
 
-No production deployment or paid model call has been performed. This build is a local reader preview, not the complete product.
+No production deployment or paid model call has been performed during development. Voice is implemented and tested against a simulator; verify a real microphone session with your account before treating it as live-validated. This remains a personal prototype, not the complete product.

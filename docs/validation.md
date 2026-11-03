@@ -1,4 +1,25 @@
-# Validation — Studio reader increment
+# Validation — Studio Realtime voice
+
+Validated in the managed cloud workspace on 3 November 2026 using synthetic PDFs and dummy credentials. No live OpenAI inference request was made.
+
+| Check | Result | Evidence scope |
+| --- | --- | --- |
+| Unit suite | Passed, 20 tests | Existing document/index checks plus strict voice tool arguments, question-page snapshots, ambiguous labels, search coverage, image/call budgets, cancellation, and stale-document rejection |
+| Reader browser suite | Passed, 17 tests | Existing reader, background lookup, layout, history, settings persistence, and local-only request behavior |
+| Voice browser suite | Passed, 15 tests | Simulated WebRTC/auth exchange; transcripts; start/mute/unmute/stop; permission denial and late permission resolution; HTTP/provider errors; question-bound images and off-screen retrieval; receipt confirmation; document replacement; interrupted and duplicate events; typed questions; key removal; tab backgrounding; mobile controls; negotiated image-size limits |
+| TypeScript + production build | Passed | Full app and tests type-check and production assets build |
+| Formatting and diff checks | Passed | Repository formatter and whitespace checks |
+| Visual inspection | Passed for inspected layouts | Desktop 1440 × 1000 and phone-sized 390 × 844 screenshots with synthetic content; the connected phone state used the test simulator |
+| Live microphone/account session | Not run | User's key is in their browser, not the cloud workspace. Authentication, browser CORS, real WebRTC transport, acoustic interruption/echo, and phone behavior remain unverified |
+| AI visual-answer acceptance | Not run | No paid model call or held-out image interpretation test |
+
+Commands: `npm run test`, `npm run build`, `npm run format:check`, and `TEST_PORT=5182 npm run test:browser`. All 17 reader tests passed in the full browser run; the final voice-only run (`TEST_PORT=5182 npm run test:browser -- tests/voice.browser.test.ts`) passed all 15 voice tests after adding image-size coverage and correcting the test's permission simulator. These tests intercept OpenAI requests and use a simulated peer/microphone: they verify client orchestration, not live provider or acoustic behavior.
+
+See [voice implementation and limitations](voice.md) for endpoint references, lifecycle behavior, evidence delivery, and remaining live checks. No dependencies were added. The audit and screenshot evidence below describe the prior Studio increment and were not rerun as a new security audit.
+
+---
+
+## Previous Studio reader increment
 
 Run in the managed Linux cloud environment on 3 November 2026, using Node.js 24.19.0 and Chromium 154.0.8037.57. Synthetic fixtures only.
 

@@ -6,18 +6,24 @@ import {
   FileImage,
   MessageCircle,
   MicOff,
+  Mic,
+  Square,
+  Send,
   Search,
   X,
 } from "lucide-react";
 import type { PdfDocument } from "../documents/pdf";
 import type { Source } from "../documents/model";
 import Research from "./Research";
+import { useVoice } from "../voice/useVoice";
+import type { VoiceActivity } from "../voice/realtime";
 
 export type ActivityDraft = {
-  kind: "context" | "request" | "lookup" | "error";
+  kind: "context" | "request" | "lookup" | "error" | "user" | "assistant";
   title: string;
   detail: string;
   sources?: Source[];
+  delivery?: "pending" | "accepted" | "failed";
 };
 type Activity = ActivityDraft & { id: string };
 
@@ -25,10 +31,12 @@ function SourcePreview({
   source,
   doc,
   navigate,
+  delivery,
 }: {
   source: Source;
   doc: PdfDocument;
   navigate: (page: number) => void;
+  delivery?: "pending" | "accepted" | "failed";
 }) {
   const [url, setUrl] = useState("");
   useEffect(() => {
@@ -63,8 +71,14 @@ function SourcePreview({
           <p>This older image preview was released to save memory.</p>
         )}
         <p className="small muted">
-          {source.clipped ? "Clipped excerpt. " : ""}Prepared locally · not sent
-          to AI
+          {source.clipped ? "Clipped excerpt. " : ""}
+          {delivery === "accepted"
+            ? "Received by OpenAI"
+            : delivery === "pending"
+              ? "Sending to OpenAI · awaiting receipt"
+              : delivery === "failed"
+                ? "Delivery to OpenAI unconfirmed"
+                : "Prepared locally · not sent to AI"}
         </p>
         <button
           className="text-button"
@@ -104,12 +118,18 @@ export default function Companion({
   const history = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const lastPrepared = useRef("");
-  const append = useCallback((draft: ActivityDraft) => {
-    const event = { ...draft, id: crypto.randomUUID() };
+  const [message, setMessage] = useState("");
+  const append = useCallback((draft: ActivityDraft & { id?: string }) => {
+    const event = { ...draft, id: draft.id || crypto.randomUUID() };
     setEvents((previous) => {
       // Keep a small local timeline and at most six image blobs. Never persist it.
       let images = 0;
-      return [...previous, event]
+      const existing = previous.findIndex((item) => item.id === event.id);
+      const next =
+        existing < 0
+          ? [...previous, event]
+          : previous.map((item, index) => (index === existing ? event : item));
+      return next
         .slice(-30)
         .reverse()
         .map((item) => ({
@@ -124,6 +144,13 @@ export default function Companion({
     });
     if (!atBottom.current) setUnseen(true);
   }, []);
+  const voiceActivity = useCallback(
+    (event: VoiceActivity) => append(event),
+    [append],
+  );
+  const voice = useVoice(doc, contextPage, voiceActivity);
+  const connected = voice.state.status === "connected";
+  const connecting = voice.state.status === "connecting";
   useEffect(() => {
     if (!preparedSource || preparedSource.documentId !== doc.id) return;
     const key = `${preparedSource.page}:${preparedSource.hash}`;
@@ -183,8 +210,8 @@ export default function Companion({
             voice is connected.
           </p>
           <p className="intro-note">
-            For now, follow your local reading and lookups below. Nothing has
-            been sent to AI.
+            Start voice to talk. Requested pages and excerpts are shared with
+            OpenAI during the conversation; local reading stays on your device.
           </p>
         </div>
         {trimmed && (
@@ -213,9 +240,13 @@ export default function Companion({
               <span className="activity-author">
                 {event.kind === "request"
                   ? "YOU · LOCAL TOOL"
-                  : event.kind === "error"
-                    ? "ACTIVITY UPDATE"
-                    : "DOCUMENT ACTIVITY"}
+                  : event.kind === "user"
+                    ? "YOU"
+                    : event.kind === "assistant"
+                      ? "MARGIN · AI"
+                      : event.kind === "error"
+                        ? "ACTIVITY UPDATE"
+                        : "DOCUMENT ACTIVITY"}
               </span>
               <h3>{event.title}</h3>
               <p>{event.detail}</p>
@@ -225,6 +256,7 @@ export default function Companion({
                   source={source}
                   doc={doc}
                   navigate={navigate}
+                  delivery={event.delivery}
                 />
               ))}
             </div>
@@ -245,36 +277,89 @@ export default function Companion({
       <div className="voice-dock">
         <div className="voice-dock-main">
           <div
-            className="voice-orb"
+            className={`voice-orb ${connected ? `voice-orb-${voice.state.activity}` : ""}`}
             role="img"
-            aria-label="Voice companion idle"
+            aria-label={`Voice companion ${connected ? voice.state.activity : "idle"}`}
           />
           <div className="voice-dock-copy">
             <h3>Ideas sound better out loud.</h3>
-            <p id="voice-availability">
-              Voice isn’t connected yet. Your microphone is off.
+            <p
+              id="voice-availability"
+              role={voice.state.status === "error" ? "alert" : "status"}
+            >
+              {voice.state.message}
             </p>
           </div>
         </div>
         <div className="voice-controls">
           <button
             className="voice-mute"
-            aria-label="Microphone off"
-            disabled
+            aria-label={
+              connected
+                ? voice.state.muted
+                  ? "Unmute microphone"
+                  : "Mute microphone"
+                : "Microphone off"
+            }
+            disabled={!connected}
+            onClick={voice.mute}
             aria-describedby="voice-availability"
           >
-            <MicOff size={19} />
+            {connected && !voice.state.muted ? (
+              <Mic size={19} />
+            ) : (
+              <MicOff size={19} />
+            )}
           </button>
           <button
             className="start-voice"
-            disabled
+            onClick={connected || connecting ? voice.stop : voice.start}
             aria-describedby="voice-availability"
           >
-            Start voice
+            {connected ? (
+              <>
+                <Square size={14} /> Stop voice
+              </>
+            ) : connecting ? (
+              "Cancel connection"
+            ) : (
+              "Start voice"
+            )}
           </button>
         </div>
+        <audio ref={voice.audio} autoPlay />
+        {voice.state.playbackBlocked && (
+          <button onClick={voice.enableAudio}>Enable speaker audio</button>
+        )}
+        {connected && (
+          <form
+            className="voice-message"
+            onSubmit={(event) => {
+              event.preventDefault();
+              voice.text(message);
+              setMessage("");
+            }}
+          >
+            <input
+              aria-label="Message your companion"
+              placeholder="Or type a question…"
+              value={message}
+              maxLength={2000}
+              onChange={(event) => setMessage(event.target.value)}
+            />
+            <button
+              type="submit"
+              aria-label="Send message"
+              disabled={!message.trim()}
+            >
+              <Send size={16} />
+            </button>
+          </form>
+        )}
         <span className="dock-note">
-          Page images stay local until a connected conversation needs them.
+          {connected
+            ? `OpenAI · ${voice.state.muted ? "Mic off" : voice.state.activity} · ${voice.state.inputTokens.toLocaleString()} input / ${voice.state.outputTokens.toLocaleString()} output tokens`
+            : "Start voice sends audio and requested sources to OpenAI. API charges apply."}
         </span>
       </div>
       <dialog

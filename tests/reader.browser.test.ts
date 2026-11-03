@@ -244,7 +244,7 @@ test("conversation is the default surface with honest local context and inspecta
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Start voice", exact: true }),
-  ).toBeDisabled();
+  ).toBeEnabled();
   await expect(
     page.getByRole("button", { name: "Microphone off", exact: true }),
   ).toBeDisabled();
@@ -442,9 +442,11 @@ test("connection settings save, update and remove a key locally without affectin
     .getByLabel("OpenAI API key", { exact: true })
     .fill("test-placeholder-key-one");
   await page.getByRole("button", { name: "Save key", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "No API request was made",
-  );
+  await expect(
+    page
+      .getByRole("dialog", { name: "A voice for your reading." })
+      .getByRole("status"),
+  ).toContainText("No API request was made");
   await expect(page.getByLabel("OpenAI API key", { exact: true })).toHaveValue(
     "",
   );

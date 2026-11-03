@@ -977,3 +977,85 @@ button:hover {
     font-size: 24px;
   }
 }
+
+/* Live voice reuses the Studio dock and history. */
+.voice-orb-listening {
+  box-shadow: 0 0 0 5px #c7ddd580;
+}
+.voice-orb-thinking {
+  animation: voice-breathe 1.6s ease-in-out infinite;
+}
+.voice-orb-speaking {
+  animation: voice-breathe 0.7s ease-in-out infinite;
+  box-shadow: 0 0 0 7px #a8cfc380;
+}
+@keyframes voice-breathe {
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.12);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-orb {
+    animation: none;
+  }
+}
+.voice-dock .start-voice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.voice-message {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.voice-message input {
+  min-width: 0;
+  flex: 1;
+  background: #f3f7f3;
+  border: 1px solid #c8d8cf;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+}
+.voice-message button {
+  padding: 9px 12px;
+  background: #dce9df;
+  border: 0;
+}
+.voice-dock audio {
+  display: none;
+}
+.activity-user {
+  margin-left: auto;
+  max-width: 85%;
+  background: #dee9df;
+  border-radius: 16px;
+  padding: 12px;
+}
+.activity-user .activity-symbol {
+  display: none;
+}
+.activity-user {
+  display: block;
+}
+.activity-assistant p,
+.activity-user p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.voice-dock .dock-note {
+  overflow-wrap: anywhere;
+}
+.connection-row select {
+  max-width: 65%;
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid #c8d8cf;
+  border-radius: 8px;
+  padding: 6px;
+  background: #f3f7f3;
+}
