@@ -26,6 +26,8 @@ Each question allows eight tool calls and three image requests. Text excerpts ar
 
 Settled-page preparation remains local. A question does **not** automatically upload a page image; the model requests an image when needed. Actual image bytes are supplied as `input_image` content, separate from textual function outputs. The timeline distinguishes local preparation, pending delivery, confirmed conversation-item receipt, and unconfirmed delivery. Receipt does not prove the model understood the image. The provider transcript is generated text, not a measurement of exactly what the user heard before an interruption.
 
+Client conversation-item IDs are generated within the Realtime input schema's 32-character limit. Rejected source events are matched to their receipt using the client event ID; the UI shows a known error code/schema field without echoing raw provider messages. Receipt timeout or rejection leaves voice connected, but does not request an answer from unconfirmed evidence. The next question can retry.
+
 A new question cancels prior retrieval and receipt waits. Late responses cannot continue an obsolete question or append its transcript deltas. WebRTC and server VAD handle audio interruption/truncation. Document replacement invalidates the entire connection. Provider events and tool arguments are treated as untrusted input; only the fixed local document tools can run.
 
 The UI displays accumulated input/output tokens reported by completed Realtime responses. This is **not** a bill or a spending cap: transcription billing and interrupted-session usage may not be fully represented. No durable budget ledger is implemented.
@@ -39,3 +41,5 @@ Automated tests use synthetic PDFs, dummy credentials, a simulated WebRTC peer/m
 - [Realtime WebRTC connection](https://developers.openai.com/api/docs/guides/voice-webrtc?voice-api=realtime): ephemeral credentials, calls endpoint, media tracks, and event channel.
 - [Realtime conversations](https://developers.openai.com/api/docs/guides/realtime-conversations): GA transcripts, image content, function outputs, and response continuation.
 - [GPT-Realtime-2.1](https://developers.openai.com/api/docs/models/gpt-realtime-2.1): audio, image input, and tool capabilities. Access depends on the account.
+
+- [Realtime client event schema](https://developers.openai.com/api/reference/resources/realtime/client-events): client input IDs and event correlation.

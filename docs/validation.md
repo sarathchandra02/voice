@@ -1,3 +1,13 @@
+# Page-delivery repair — 3 November 2026
+
+A user reported working speech followed by “Source delivery unconfirmed” on PDF lookups. Inspection found 37-character client item IDs (`item_` plus a separator-free UUID), exceeding the Realtime input schema's 32-character constraint. The provider simulator previously accepted these IDs. Enforcing the schema constraint reproduced a failed image/text delivery test; the same test passes after using unprefixed 32-character IDs.
+
+Source rejection now correlates to the sending event and exposes only allowlisted error codes and schema fields. Rejection and receipt timeout leave voice connected, do not request continuation from unconfirmed evidence, and allow a new question. Interruptions are identified separately. Page-number questions use the supplied reader context without a needless source lookup.
+
+Validation: 23 unit tests, 34 browser tests, TypeScript/production build, and formatting checks passed. New checks cover schema-valid IDs, safe diagnostics, rejected-source recovery, and receipt timeout/late acknowledgement. No live paid API call was made for this repair; confirmation in the user's browser remains pending. Sites worker error logs were empty, as expected for browser-to-OpenAI traffic.
+
+---
+
 # Validation — Studio Realtime voice
 
 Validated in the managed cloud workspace on 3 November 2026 using synthetic PDFs and dummy credentials. No live OpenAI inference request was made.

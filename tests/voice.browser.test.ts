@@ -55,6 +55,28 @@ async function simulate(
           send(data: string) {
             const event = JSON.parse(data);
             w.voiceTest.sent.push(event);
+            // Mirror the documented Realtime client item-ID constraint instead
+            // of accepting payloads that the real provider can reject.
+            if (
+              event.type === "conversation.item.create" &&
+              (typeof event.item.id !== "string" ||
+                !/^[a-zA-Z0-9_-]{1,32}$/.test(event.item.id))
+            ) {
+              setTimeout(
+                () =>
+                  w.voiceTest.emit({
+                    type: "error",
+                    error: {
+                      code: "invalid_value",
+                      param: "item.id",
+                      event_id: event.event_id,
+                      message: "Invalid item.id: maximum length 32.",
+                    },
+                  }),
+                0,
+              );
+              return;
+            }
             if (!opts.noAck && event.type === "conversation.item.create")
               setTimeout(
                 () =>
@@ -635,4 +657,93 @@ test("large page images are reduced to fit the negotiated data-channel limit", a
   expect(result.reduced).toBeLessThan((65536 - 4096) * 0.74);
   expect(result.width).toBeGreaterThan(0);
   expect(result.hash).toMatch(/^[a-f0-9]{64}$/);
+});
+
+test("a rejected source reports its safe cause and leaves voice connected", async ({
+  page,
+}) => {
+  await simulate(page, { noAck: true });
+  await start(page);
+  const response = await question(page);
+  await emit(page, {
+    type: "response.done",
+    response: {
+      ...response,
+      status: "completed",
+      output: [
+        {
+          type: "function_call",
+          call_id: "rejected_lookup",
+          name: "current_page",
+          arguments: '{"format":"text"}',
+        },
+      ],
+    },
+  });
+  await expect(
+    page.getByText("Waiting for OpenAI to confirm receipt.", { exact: true }),
+  ).toBeVisible();
+  const output = (await sent(page, "conversation.item.create")).at(-1);
+  await emit(page, {
+    type: "error",
+    error: {
+      event_id: output.event_id,
+      code: "invalid_value",
+      param: "item.id",
+      message: "test-only-not-a-real-key MUST NOT APPEAR",
+    },
+  });
+  await expect(
+    page.getByText("Source rejected by OpenAI", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("#voice-availability")).toContainText(
+    "invalid_value; field item.id",
+  );
+  await expect(
+    page.getByRole("button", { name: "Stop voice", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("MUST NOT APPEAR");
+  expect(
+    await page.evaluate(() => (window as any).voiceTest.tracks[0].readyState),
+  ).toBe("live");
+  expect((await sent(page, "response.create")).length).toBe(1);
+  await question(page, "retry_question");
+  expect((await sent(page, "response.create")).length).toBe(2);
+});
+
+test("unconfirmed source timeout keeps voice alive without continuing from missing evidence", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await simulate(page, { noAck: true });
+  await start(page);
+  const response = await question(page);
+  await emit(page, {
+    type: "response.done",
+    response: {
+      ...response,
+      status: "completed",
+      output: [
+        {
+          type: "function_call",
+          call_id: "timeout_lookup",
+          name: "current_page",
+          arguments: '{"format":"text"}',
+        },
+      ],
+    },
+  });
+  await expect(
+    page.getByText("Waiting for OpenAI to confirm receipt.", { exact: true }),
+  ).toBeVisible();
+  const output = (await sent(page, "conversation.item.create")).at(-1);
+  await page.clock.fastForward(10_001);
+  await expect(page.locator("#voice-availability")).toContainText(
+    "within 10 seconds",
+  );
+  await expect(
+    page.getByRole("button", { name: "Stop voice", exact: true }),
+  ).toBeVisible();
+  await emit(page, { type: "conversation.item.added", item: output.item });
+  expect((await sent(page, "response.create")).length).toBe(1);
 });

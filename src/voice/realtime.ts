@@ -1,6 +1,11 @@
 import type { PdfDocument } from "../documents/pdf";
 import type { Source } from "../documents/model";
 import { fitImage } from "./images";
+import {
+  realtimeItemId as id,
+  providerDiagnostic,
+  SourceDeliveryError,
+} from "./protocol";
 import { DOCUMENT_TOOLS, DocumentTools, VOICE_INSTRUCTIONS } from "./tools";
 
 export type VoiceState = {
@@ -35,7 +40,6 @@ type Receipt = {
   eventId: string;
 };
 type WireEvent = Record<string, any>;
-const id = () => `item_${crypto.randomUUID().replaceAll("-", "")}`;
 const API = "https://api.openai.com/v1/realtime";
 function httpError(status: number) {
   if (status === 401)
@@ -360,7 +364,12 @@ export class RealtimeVoice {
     // WebRTC handles playback truncation on interruption. Clear completed audio too.
     if (clearPlayback && this.state.activity === "speaking")
       this.send({ type: "output_audio_buffer.clear" });
-    this.update({ activity: "listening" });
+    this.update({
+      activity: "listening",
+      message: this.state.muted
+        ? "Microphone off. You can still listen or type."
+        : "Listening. Ask about your book.",
+    });
   }
   text(text: string) {
     const value = text.trim().slice(0, 2000);
@@ -566,7 +575,8 @@ export class RealtimeVoice {
         this.pump();
       }
     } else if (type === "error") {
-      // Never display the raw provider message: it may echo credentials or document text.
+      // Match rejected source sends to their receipt instead of aborting every
+      // receipt and replacing the actual cause with an interruption message.
       if (
         [
           "response_cancel_not_active",
@@ -574,8 +584,21 @@ export class RealtimeVoice {
         ].includes(event.error?.code)
       )
         return;
+      const diagnostic = providerDiagnostic(event.error || {});
+      const receipt = [...this.receipts.values()].find(
+        (pending) => pending.eventId === event.error?.event_id,
+      );
+      if (receipt) {
+        receipt.reject(
+          new SourceDeliveryError(
+            `OpenAI rejected this source (${diagnostic}).`,
+            "rejected",
+          ),
+        );
+        return;
+      }
       this.fatal(
-        "OpenAI rejected a voice event. Check your model and API access, then start a new session.",
+        `OpenAI rejected a voice event (${diagnostic}). Start a new session.`,
       );
     }
   }
@@ -600,7 +623,13 @@ export class RealtimeVoice {
       const abort = () =>
         fail(new Error("Question interrupted before delivery was confirmed."));
       const timer = setTimeout(
-        () => fail(new Error("OpenAI did not confirm receiving this source.")),
+        () =>
+          fail(
+            new SourceDeliveryError(
+              "OpenAI did not confirm receiving this source within 10 seconds.",
+              "timeout",
+            ),
+          ),
         10_000,
       );
       this.receipts.set(itemId, { resolve: done, reject: fail, eventId });
@@ -612,7 +641,12 @@ export class RealtimeVoice {
           item,
         });
       } catch {
-        fail(new Error("Voice connection closed."));
+        fail(
+          new SourceDeliveryError(
+            "This source could not be sent over the voice connection.",
+            "send",
+          ),
+        );
       }
     });
   }
@@ -738,9 +772,17 @@ export class RealtimeVoice {
           this.onActivity({
             id: activityId,
             kind: "error",
-            title: "Source delivery unconfirmed",
+            title:
+              error instanceof SourceDeliveryError &&
+              error.reason === "rejected"
+                ? "Source rejected by OpenAI"
+                : "Source delivery unconfirmed",
             detail:
-              "The lookup was interrupted or its receipt was not confirmed.",
+              error instanceof SourceDeliveryError
+                ? error.message
+                : signal.aborted
+                  ? "A new question or stopped session interrupted this lookup."
+                  : "This source could not be delivered.",
             sources,
             delivery: "failed",
           });
@@ -748,11 +790,14 @@ export class RealtimeVoice {
         }
       }
       if (this.alive && turn === this.turn) this.wantsResponse = true;
-    } catch {
+    } catch (error) {
       if (this.alive && !signal.aborted)
-        this.fatal(
-          "Document delivery failed. Voice stopped to avoid answering from unconfirmed sources.",
-        );
+        // No continuation is requested from unconfirmed evidence. Keep capture
+        // available so the user can ask again or choose another source.
+        this.update({
+          activity: "listening",
+          message: `${error instanceof SourceDeliveryError ? error.message : "Document delivery failed."} Voice is still connected; ask again or try another page.`,
+        });
     } finally {
       if (this.alive && turn === this.turn) {
         this.working = false;
