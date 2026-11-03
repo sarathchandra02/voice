@@ -1,6 +1,6 @@
 # Margin — PDF and Excel Voice Companion
 
-The first working increment of a local document reader with an independent research panel. Open a PDF, keep your place, and inspect a different page or chapter without moving your view.
+The first working increment of a local document reader with a conversation-style companion and independent research tools. Open a PDF, keep your place, and inspect a different page or chapter without moving your view. The desktop reader uses 60% of the workspace; the companion shows a scrollable activity history above an idle voice bubble. Open the three-dot options button to use search, chapter lookup, and page inspection.
 
 **Status:** PDF reader/research foundation. Excel, voice, provider integration, private server access, and spending admission are planned and are not implemented. No microphone or AI connection is opened by this version.
 
@@ -34,7 +34,9 @@ npm run dev
 - Direct text/image retrieval independent of indexing progress, PDF outline lookup, and sequential next-page research.
 - Source-linked research results; explicit navigation and return-to-reading-position controls.
 - Separate foreground and background state, local image preparation after a 2.5-second dwell, and cancellation on page/document changes.
-- Responsive layout, keyboard-operable divider, collapsible research panel, and clear/replace teardown.
+- Responsive layout, keyboard-operable divider, collapsible conversation panel, and clear/replace teardown.
+- A session-only activity history of settled-page images, manual lookup requests, retrieved sources, and failures. Expand source chips to inspect local inputs. Prepared images are explicitly labelled as not sent to AI.
+- Research tools in a keyboard-accessible three-dot options dialog. Escape closes it and restores focus. New activity preserves your history scroll position and offers a jump-to-latest button.
 
 Book labels are metadata, not verified OCR of printed numbers. Outline entries are bookmarks, not a guaranteed chapter catalog. Keyword search is not semantic search. The research panel exposes the local tools that the future assistant will use; it does not produce AI answers or claim to understand figures.
 
@@ -62,7 +64,8 @@ See the [implementation plan](docs/implementation-plan.md) for the complete rele
 - Text uses an extracted-text fallback, not an aligned selectable text layer. Selection-to-question context is pending.
 - Index term/posting counts and text caches are bounded, but fixed-memory index arenas and a strict four-page PDF resource scheduler are not implemented. The 3,000-page ceiling is a guard, not a performance certification. Full hostile-document and memory-stress validation remains pending.
 - A pixel/byte bound limits page images; crop-based recovery for pages that exceed the image limit is pending.
-- The local source registry retains the most recent twelve sources; sources are cleared with the document and are not persisted.
+- The local source registry retains the most recent twelve sources. Conversation activity retains thirty entries and at most six image previews, separately from that registry. Older image previews are released; document replacement clears both. Nothing is persisted.
+- The voice orb is idle and voice controls are disabled. Current history contains real local document activity, not speech transcripts, model responses, or provider delivery acknowledgments. Those will be connected in the voice milestone.
 - Chromium desktop and a mobile-sized viewport were tested. Physical phone, microphone, loudspeaker, Safari, Firefox, and live visual-answer acceptance tests have not run.
 
 No production deployment or paid model call has been performed. This build is a local reader preview, not the complete product.

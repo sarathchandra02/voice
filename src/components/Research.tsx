@@ -7,6 +7,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { PdfDocument } from "../documents/pdf";
+import type { ActivityDraft } from "./Companion";
 import { resolvePage, type Coverage, type Source } from "../documents/model";
 
 function Evidence({
@@ -67,13 +68,11 @@ function Evidence({
 export default function Research({
   doc,
   navigate,
-  contextPage,
-  contextState,
+  onActivity,
 }: {
   doc: PdfDocument;
   navigate: (page: number) => void;
-  contextPage: number | null;
-  contextState: string;
+  onActivity: (event: ActivityDraft) => void;
 }) {
   const [coverage, setCoverage] = useState<Coverage>({ ...doc.coverage });
   const [query, setQuery] = useState("");
@@ -95,39 +94,65 @@ export default function Research({
     [doc],
   );
   useEffect(() => () => task.current?.abort(), []);
-  async function run(action: (signal: AbortSignal) => Promise<Source[]>) {
+  async function run(
+    title: string,
+    action: (signal: AbortSignal) => Promise<Source[]>,
+  ) {
     task.current?.abort();
     const abort = new AbortController();
     task.current = abort;
     setBusy(true);
+    onActivity({
+      kind: "request",
+      title,
+      detail: "Manual lookup · local only",
+    });
     setMessage("");
     setSources([]);
     try {
       const result = await action(abort.signal);
       if (!abort.signal.aborted) {
         setSources(result);
+        onActivity({
+          kind: "lookup",
+          title: result.length ? "Sources retrieved" : "No text matches found",
+          detail: result.length
+            ? "Retrieved locally. Your reading position stayed in place. Nothing was sent to AI."
+            : "The search covered indexed text only. Scans or unfinished indexing can leave gaps.",
+          sources: result,
+        });
         if (!result.length)
           setMessage(
             "No matches in the indexed text. Scans, incomplete indexing, or different wording can leave gaps.",
           );
       }
     } catch (error) {
-      if (!abort.signal.aborted) setMessage((error as Error).message);
+      if (!abort.signal.aborted) {
+        setMessage((error as Error).message);
+        onActivity({
+          kind: "error",
+          title: "Lookup could not finish",
+          detail: (error as Error).message,
+        });
+      }
     } finally {
       if (!abort.signal.aborted) setBusy(false);
     }
   }
   function inspect(kind: "text" | "image", forcedPage?: number) {
-    void run(async (signal) => {
-      const page = forcedPage ?? resolvePage(entry, mode, doc.labels);
-      const source =
-        kind === "image"
-          ? await doc.image(page, signal)
-          : await doc.read(page, signal);
-      signal.throwIfAborted();
-      setCursor(page);
-      return [source];
-    });
+    void run(
+      `${kind === "image" ? "View image" : "Read text"} · ${forcedPage !== undefined || mode === "pdf" ? "PDF page" : "book label"} ${forcedPage ?? entry}`,
+      async (signal) => {
+        const page = forcedPage ?? resolvePage(entry, mode, doc.labels);
+        const source =
+          kind === "image"
+            ? await doc.image(page, signal)
+            : await doc.read(page, signal);
+        signal.throwIfAborted();
+        setCursor(page);
+        return [source];
+      },
+    );
   }
   const complete = coverage.processed === coverage.total;
   const gaps =
@@ -135,14 +160,6 @@ export default function Research({
     coverage.limited;
   return (
     <div className="research-body">
-      <div className="context-card">
-        <span className="eyebrow">YOUR READING CONTEXT</span>
-        <strong>
-          {contextPage ? `PDF page ${contextPage}` : "Waiting for the page"}
-        </strong>
-        <p>{contextState}</p>
-        <span className="local-badge">Local only · nothing sent</span>
-      </div>
       <div className="section-heading">
         <h3>Explore the book</h3>
         <span>Independent of your view</span>
@@ -152,7 +169,7 @@ export default function Research({
         onSubmit={(e) => {
           e.preventDefault();
           setCursor(null);
-          void run(async (signal) => {
+          void run(`Search book: “${query.trim()}”`, async (signal) => {
             const pages = doc.index.search(query);
             const result = [];
             for (const page of pages) result.push(await doc.read(page, signal));
@@ -284,6 +301,11 @@ export default function Research({
               task.current?.abort();
               setBusy(false);
               setMessage("Retrieval canceled.");
+              onActivity({
+                kind: "error",
+                title: "Lookup canceled",
+                detail: "No new source was added.",
+              });
             }}
           >
             Cancel
@@ -304,14 +326,6 @@ export default function Research({
             navigate={navigate}
           />
         ))}
-      </div>
-      <div className="voice-note">
-        <span className="eyebrow">VOICE · NEXT MILESTONE</span>
-        <p>
-          Read and explore now. Voice conversations will be available after
-          private access and spending controls are connected.
-        </p>
-        <span className="small">Microphone off · no AI connection</span>
       </div>
     </div>
   );

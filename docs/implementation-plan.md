@@ -80,6 +80,14 @@ Acceptance scenario: while viewing a later page at a chosen zoom and scroll posi
 - Document replacement cancels both interfaces' work and invalidates all sources, mappings, continuation cursors, and queued provider evidence from the old revision.
 - Automated tests cover tool behavior offline. Live diagram identification and contextual comparison require separate model-answer evidence, including held-out figures and image-blocked controls.
 
+## Refined companion interface
+
+Use approximately 60% of the desktop workspace for the document. The companion is a conversation surface: scrollable messages and concise document activity above a voice bubble and persistent voice controls. Research controls, indexing details, chapter lookup, and manual inspection belong behind a three-dot options button.
+
+The timeline should make actual inputs and outcomes inspectable without exposing internal prompts or hidden reasoning. Distinguish local page preparation, confirmed provider delivery, user transcripts, assistant transcripts, and retrieved sources. Only show events backed by their actual lifecycle; preparation never implies delivery. Expandable source chips expose relevant page images or excerpts. Background lookups preserve the visible book position. New activity must not pull a user away from older conversation entries.
+
+The current increment implements the layout, real local activity, source inspection, and menu. Live voice controls remain disabled until the server and provider gates are implemented. Provider delivery and speech transcripts remain pending. Keep the history bounded and session-local, and clear it on document replacement.
+
 ## Build sequence
 
 ### 1. Project foundation and local reader

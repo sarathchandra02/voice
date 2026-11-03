@@ -15,10 +15,12 @@ import {
   ArrowLeft,
   Headphones,
   ArrowRight,
+  MoreHorizontal,
 } from "lucide-react";
 import type { PdfDocument } from "./documents/pdf";
 import Reader from "./components/Reader";
-import Research from "./components/Research";
+import Companion from "./components/Companion";
+import type { Source } from "./documents/model";
 
 export default function App() {
   const [doc, setDoc] = useState<PdfDocument | null>(null);
@@ -29,7 +31,9 @@ export default function App() {
   const [renderedPage, setRenderedPage] = useState<number | null>(null);
   const [backPage, setBackPage] = useState<number | null>(null);
   const [collapsed, setCollapsed] = useState(false);
-  const [readerWidth, setReaderWidth] = useState(65);
+  const [readerWidth, setReaderWidth] = useState(60);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [preparedSource, setPreparedSource] = useState<Source | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -45,6 +49,8 @@ export default function App() {
     liveDoc.current?.dispose();
     liveDoc.current = null;
     setDoc(null);
+    setPreparedSource(null);
+    setToolsOpen(false);
     setPage(1);
     setRenderedPage(null);
     setBackPage(null);
@@ -94,11 +100,13 @@ export default function App() {
     const timer = setTimeout(() => {
       doc
         .image(page, abort.signal)
-        .then(() => {
-          if (!abort.signal.aborted)
+        .then((source) => {
+          if (!abort.signal.aborted) {
+            setPreparedSource(source);
             setContextState(
               "Page image ready locally for a future conversation.",
             );
+          }
         })
         .catch(() => {
           if (!abort.signal.aborted)
@@ -319,27 +327,43 @@ export default function App() {
                   <span className="status-dot" />
                   Companion
                 </span>
-                <button
-                  className="icon-button"
-                  aria-label={
-                    collapsed ? "Expand companion" : "Collapse companion"
-                  }
-                  onClick={() => setCollapsed((value) => !value)}
-                >
-                  {collapsed ? (
-                    <PanelRightOpen size={18} />
-                  ) : (
-                    <PanelRightClose size={18} />
+                <div className="companion-header-actions">
+                  {!collapsed && (
+                    <button
+                      className="icon-button"
+                      aria-label="Companion options"
+                      aria-haspopup="dialog"
+                      aria-expanded={toolsOpen}
+                      onClick={() => setToolsOpen(true)}
+                    >
+                      <MoreHorizontal size={20} />
+                    </button>
                   )}
-                </button>
+                  <button
+                    className="icon-button"
+                    aria-label={
+                      collapsed ? "Expand companion" : "Collapse companion"
+                    }
+                    onClick={() => setCollapsed((value) => !value)}
+                  >
+                    {collapsed ? (
+                      <PanelRightOpen size={18} />
+                    ) : (
+                      <PanelRightClose size={18} />
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="companion-content" hidden={collapsed}>
-                <Research
+                <Companion
                   key={doc.id}
                   doc={doc}
                   navigate={researchNavigate}
                   contextPage={renderedPage}
                   contextState={contextState}
+                  preparedSource={preparedSource}
+                  toolsOpen={toolsOpen}
+                  closeTools={() => setToolsOpen(false)}
                 />
               </div>
               {collapsed && (
