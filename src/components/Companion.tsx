@@ -1,3 +1,5 @@
+import { providerName, modelInfo } from "../voice/settings";
+import VoiceModelPicker from "./VoiceModelPicker";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
@@ -23,7 +25,8 @@ export type ActivityDraft = {
   title: string;
   detail: string;
   sources?: Source[];
-  delivery?: "pending" | "accepted" | "failed";
+  delivery?: "pending" | "accepted" | "failed" | "sent";
+  provider?: string;
 };
 type Activity = ActivityDraft & { id: string };
 
@@ -32,11 +35,13 @@ function SourcePreview({
   doc,
   navigate,
   delivery,
+  provider = "OpenAI",
 }: {
   source: Source;
   doc: PdfDocument;
   navigate: (page: number) => void;
-  delivery?: "pending" | "accepted" | "failed";
+  delivery?: "pending" | "accepted" | "failed" | "sent";
+  provider?: string;
 }) {
   const [url, setUrl] = useState("");
   useEffect(() => {
@@ -96,12 +101,14 @@ function SourcePreview({
         <p className="small muted">
           {source.clipped ? "Clipped excerpt. " : ""}
           {delivery === "accepted"
-            ? "Received by OpenAI"
+            ? `Received by ${provider}`
             : delivery === "pending"
-              ? "Sending to OpenAI · awaiting receipt"
+              ? `Sending to ${provider} · awaiting receipt`
               : delivery === "failed"
-                ? "Delivery to OpenAI unconfirmed"
-                : "Prepared locally · not sent to AI"}
+                ? `Delivery to ${provider} unconfirmed`
+                : delivery === "sent"
+                  ? `Sent to ${provider} · receipt not confirmed`
+                  : "Prepared locally · not sent to AI"}
         </p>
         <button
           className="text-button"
@@ -251,7 +258,8 @@ export default function Companion({
           </p>
           <p className="intro-note">
             Start voice to talk. Requested pages and excerpts are shared with
-            OpenAI during the conversation; local reading stays on your device.
+            your selected provider during the conversation; local reading stays
+            on your device.
           </p>
         </div>
         {trimmed && (
@@ -297,6 +305,7 @@ export default function Companion({
                   doc={doc}
                   navigate={navigate}
                   delivery={event.delivery}
+                  provider={event.provider}
                 />
               ))}
             </div>
@@ -315,6 +324,15 @@ export default function Companion({
           : "Opening your page…"}
       </div>
       <div className="voice-dock">
+        <VoiceModelPicker compact />
+        {voice.state.model && (
+          <p className="session-model" data-testid="session-model">
+            {voice.state.modelConfirmed
+              ? "Provider confirmed"
+              : "Requested model"}
+            : {voice.state.model} · {providerName(voice.state.provider)}
+          </p>
+        )}
         <div className="voice-dock-main">
           <div
             className={`voice-orb ${connected ? `voice-orb-${voice.state.muted && !responding ? "muted" : voice.state.activity}` : ""}`}
@@ -405,8 +423,10 @@ export default function Companion({
         )}
         <span className="dock-note">
           {connected
-            ? `OpenAI · ${voice.state.muted ? "Mic off" : voice.state.activity} · ${voice.state.inputTokens.toLocaleString()} input / ${voice.state.outputTokens.toLocaleString()} output tokens`
-            : "Start voice sends audio and requested sources to OpenAI. API charges apply."}
+            ? modelInfo(voice.state.model).transport === "realtime"
+              ? `${providerName(voice.state.provider)} · ${voice.state.muted ? "Mic off" : voice.state.activity} · ${voice.state.inputTokens.toLocaleString()} input / ${voice.state.outputTokens.toLocaleString()} output tokens`
+              : `${providerName(voice.state.provider)} · ${voice.state.muted ? "Mic off" : voice.state.activity} · Usage billed by provider`
+            : "Start voice sends audio and requested sources to the selected provider. API charges apply."}
         </span>
       </div>
       <dialog

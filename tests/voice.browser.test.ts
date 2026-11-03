@@ -8,12 +8,14 @@ async function simulate(
     noKey?: boolean;
     noAck?: boolean;
     fixture?: string;
+    model?: string;
   } = {},
 ) {
   await page.addInitScript((opts) => {
     const w = window as any;
     if (!opts.noKey)
       localStorage.setItem("margin.openai-key.v1", "test-only-not-a-real-key");
+    if (opts.model) localStorage.setItem("margin.voice-model.v1", opts.model);
     w.voiceTest = { sent: [], tracks: [], calls: [], pendingMic: null };
     const fakeStream = () => {
       const track = {
@@ -39,6 +41,8 @@ async function simulate(
     });
     class Peer {
       connectionState = "new";
+      iceGatheringState = "complete";
+      localDescription: any;
       onconnectionstatechange: any;
       ontrack: any;
       channel: any;
@@ -100,13 +104,16 @@ async function simulate(
       async createOffer() {
         return { type: "offer", sdp: "test-offer" };
       }
-      async setLocalDescription() {}
+      async setLocalDescription(offer: any) {
+        this.localDescription = offer;
+      }
       async setRemoteDescription() {
         this.connectionState = "connected";
         this.channel.readyState = "open";
         w.voiceTest.emit({
-          type: "session.created",
-          session: { type: "realtime" },
+          type:
+            opts.model === "gpt-live-1" ? "session.started" : "session.created",
+          session: { type: "realtime", model: opts.model },
         });
       }
       close() {
@@ -129,6 +136,13 @@ async function simulate(
         body: JSON.stringify({
           error: { message: "do not show test-only-not-a-real-key" },
         }),
+      });
+    else if (request.url().endsWith("/live/sessions"))
+      await route.fulfill({
+        json: {
+          session: { id: "live_test" },
+          transport: { type: "webrtc", sdp: "test-answer" },
+        },
       });
     else if (request.url().endsWith("client_secrets"))
       await route.fulfill({ json: { value: "ek_test-only" } });
@@ -1031,4 +1045,306 @@ test("search excerpts surround exact figure matches and page text supports conti
   expect(result.first.nextTextOffset).toBe(2500);
   expect(result.second.text).toContain("Figure 9.2: Regression residuals");
   expect(result.second.textStart).toBe(2500);
+});
+
+test("provider picker cancels without changing the running model and never reuses the OpenAI key for Gemini", async ({
+  page,
+}) => {
+  await simulate(page);
+  await start(page);
+  const picker = page.getByLabel("Voice model", { exact: true });
+  await picker.selectOption("gemini-3.8-live");
+  const setup = page.getByRole("group", { name: "Set up Google Gemini" });
+  await expect(setup).toContainText("Your OpenAI key cannot connect to Gemini");
+  await setup.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(picker).toHaveValue("gpt-realtime-2.1");
+  await expect(
+    page.getByRole("button", { name: "Stop voice", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => (window as any).voiceTest.tracks[0].readyState),
+  ).toBe("live");
+  await picker.selectOption("gemini-3.8-live");
+  await setup
+    .getByLabel("Google Gemini API key", { exact: true })
+    .fill("sk-wrong-provider");
+  await setup.getByRole("button", { name: "Save and switch" }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Gemini requires its own",
+  );
+  await setup
+    .getByLabel("Google Gemini API key", { exact: true })
+    .fill("AIza-test-only-gemini");
+  await setup.getByRole("button", { name: "Save and switch" }).click();
+  await expect(picker).toHaveValue("gemini-3.8-live");
+  await expect(
+    page.getByRole("button", { name: "Start voice", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => localStorage.getItem("margin.openai-key.v1")),
+  ).toBe("test-only-not-a-real-key");
+  expect(
+    await page.evaluate(() => localStorage.getItem("margin.gemini-key.v1")),
+  ).toBe("AIza-test-only-gemini");
+  expect(
+    await page.evaluate(() => (window as any).voiceTest.calls.length),
+  ).toBe(2);
+  await picker.selectOption("gpt-realtime-2.1-mini");
+  await expect(setup).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await picker.scrollIntoViewIfNeeded();
+  await expect(picker).toBeInViewport();
+  await page.screenshot({
+    path: "/tmp/model-picker-mobile.png",
+    fullPage: true,
+  });
+});
+
+test("selected realtime model reaches OpenAI and the provider-reported model is visible", async ({
+  page,
+}) => {
+  await simulate(page, { model: "gpt-realtime-2.1-mini" });
+  await start(page);
+  expect(
+    await page.evaluate(
+      () => JSON.parse((window as any).voiceTest.calls[0].body).session.model,
+    ),
+  ).toBe("gpt-realtime-2.1-mini");
+  await expect(page.getByTestId("session-model")).toContainText(
+    "Provider confirmed: gpt-realtime-2.1-mini",
+  );
+  await page
+    .getByLabel("Voice model", { exact: true })
+    .selectOption("gpt-realtime-2.1");
+  await expect(
+    page.getByRole("button", { name: "Start voice", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByTestId("session-model")).toHaveCount(0);
+  expect(
+    await page.evaluate(() => (window as any).voiceTest.tracks[0].readyState),
+  ).toBe("ended");
+});
+
+test("GPT-Live uses its own endpoint and document backend, sends tools without claiming receipts, and closes cleanly", async ({
+  page,
+}) => {
+  await simulate(page, { model: "gpt-live-1" });
+  await start(page);
+  const calls = await page.evaluate(() => (window as any).voiceTest.calls);
+  expect(calls.map((c: any) => c.url)).toEqual([
+    "https://api.openai.com/v1/live/sessions",
+  ]);
+  const payload = JSON.parse(calls[0].body);
+  expect(payload.session.model).toBe("gpt-live-1");
+  expect(payload.session.delegation.responses.model).toBe("gpt-6-luna");
+  await expect(page.getByTestId("session-model")).toContainText("gpt-live-1");
+  await emit(page, {
+    type: "session.delegation.created",
+    delegation: { id: "delegation_test", target: "responses" },
+  });
+  await emit(page, {
+    type: "response.event",
+    delegation_id: "delegation_test",
+    event: {
+      type: "response.output_item.done",
+      item: {
+        type: "function_call",
+        call_id: "live_page",
+        name: "current_page",
+        arguments: '{"format":"text"}',
+      },
+    },
+  });
+  await emit(page, {
+    type: "response.event",
+    delegation_id: "delegation_test",
+    event: { type: "response.completed", response: { output: [] } },
+  });
+  await expect(
+    page.getByText("Text excerpts sent", { exact: true }),
+  ).toBeVisible();
+  const output = (await sent(page, "response.item.create")).find(
+    (e: any) => e.item.call_id === "live_page",
+  );
+  expect(JSON.parse(output.item.output).sources[0].page).toBe(1);
+  await expect(
+    page.getByText(
+      /This connection does not confirm individual source receipts/,
+    ),
+  ).toBeVisible();
+  expect(await sent(page, "response.create")).toHaveLength(1);
+  await page.getByRole("button", { name: "Stop voice", exact: true }).click();
+  expect(await sent(page, "session.close")).toHaveLength(1);
+  expect(
+    await page.evaluate(() => (window as any).voiceTest.tracks[0].readyState),
+  ).toBe("ended");
+  await emit(page, { type: "session.closed" });
+});
+
+test("Gemini uses only the Google connection, returns document tools, and releases microphone and audio resources", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const w = window as any;
+    localStorage.setItem("margin.gemini-key.v1", "AIza-test-only-google");
+    w.googleTest = { sent: [], contexts: [], url: "" };
+    class Node {
+      port: any = {};
+      gain = { value: 0 };
+      connect() {}
+      disconnect() {}
+    }
+    class Context {
+      state = "running";
+      currentTime = 0;
+      destination = {};
+      audioWorklet = { addModule: async () => {} };
+      constructor() {
+        w.googleTest.contexts.push(this);
+      }
+      async resume() {
+        this.state = "running";
+      }
+      async close() {
+        this.state = "closed";
+      }
+      createGain() {
+        return new Node();
+      }
+      createMediaStreamSource() {
+        return new Node();
+      }
+      createBuffer(_channels: number, length: number, rate: number) {
+        return {
+          duration: length / rate,
+          getChannelData: () => new Float32Array(length),
+        };
+      }
+      createBufferSource() {
+        return {
+          connect() {},
+          disconnect() {},
+          stop() {},
+          start() {},
+          buffer: null,
+          onended: null,
+        };
+      }
+    }
+    w.AudioContext = Context;
+    w.AudioWorkletNode = Node;
+    class Socket {
+      static OPEN = 1;
+      readyState = 1;
+      bufferedAmount = 0;
+      onopen: any;
+      onmessage: any;
+      onclose: any;
+      onerror: any;
+      constructor(url: string) {
+        w.googleTest.url = url;
+        w.googleTest.emit = (value: any) =>
+          this.onmessage?.({ data: JSON.stringify(value) });
+        setTimeout(() => this.onopen?.(), 0);
+      }
+      send(value: string) {
+        const event = JSON.parse(value);
+        w.googleTest.sent.push(event);
+        if (event.setup)
+          setTimeout(() => w.googleTest.emit({ setupComplete: {} }), 0);
+      }
+      close() {
+        this.readyState = 3;
+        this.onclose?.();
+      }
+    }
+    w.WebSocket = Socket;
+  });
+  await simulate(page, { model: "gemini-3.8-live" });
+  await start(page);
+  const connection = await page.evaluate(() => ({
+    url: (window as any).googleTest.url,
+    sent: (window as any).googleTest.sent,
+    openaiCalls: (window as any).voiceTest.calls,
+  }));
+  expect(connection.url).toContain("generativelanguage.googleapis.com");
+  expect(connection.url).toContain("AIza-test-only-google");
+  expect(connection.url).not.toContain("test-only-not-a-real-key");
+  expect(connection.openaiCalls).toEqual([]);
+  expect(connection.sent[0].setup.model).toBe("models/gemini-3.8-live");
+  await expect(page.getByTestId("session-model")).toContainText(
+    "Requested model: gemini-3.8-live",
+  );
+  await page.evaluate(() =>
+    (window as any).googleTest.emit({
+      toolCall: {
+        functionCalls: [
+          { id: "google_page", name: "current_page", args: { format: "text" } },
+        ],
+      },
+    }),
+  );
+  await expect(
+    page.getByText("Text excerpts sent", { exact: true }),
+  ).toBeVisible();
+  const tool = await page.evaluate(() =>
+    (window as any).googleTest.sent.find((event: any) => event.toolResponse),
+  );
+  expect(tool.toolResponse.functionResponses[0].response.sources[0].page).toBe(
+    1,
+  );
+  await expect(
+    page.getByText(/Sent to Google Gemini. This connection/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Stop voice", exact: true }).click();
+  expect(
+    await page.evaluate(() => (window as any).voiceTest.tracks[0].readyState),
+  ).toBe("ended");
+  expect(
+    await page.evaluate(() => (window as any).googleTest.contexts[0].state),
+  ).toBe("closed");
+});
+
+test("the Gemini capture worklet produces bounded PCM frames in a real browser audio context", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    const context = new AudioContext({ sampleRate: 16000 });
+    await context.audioWorklet.addModule("/voice-capture.worklet.js");
+    const capture = new AudioWorkletNode(context, "voice-capture");
+    const oscillator = context.createOscillator();
+    const silence = context.createGain();
+    silence.gain.value = 0;
+    oscillator.connect(capture);
+    capture.connect(silence);
+    silence.connect(context.destination);
+    try {
+      const frame = new Promise<ArrayBuffer>((resolve, reject) => {
+        const timeout = setTimeout(
+          () => reject(new Error("Audio frame timeout")),
+          5000,
+        );
+        capture.port.onmessage = (e) => {
+          clearTimeout(timeout);
+          resolve(e.data);
+        };
+      });
+      await context.resume();
+      oscillator.start();
+      const bytes = await frame;
+      const samples = new Int16Array(bytes);
+      return {
+        length: bytes.byteLength,
+        nonzero: samples.some((x) => x !== 0),
+      };
+    } finally {
+      oscillator.stop();
+      oscillator.disconnect();
+      capture.disconnect();
+      silence.disconnect();
+      await context.close();
+    }
+  });
+  expect(result).toEqual({ length: 3200, nonzero: true });
 });

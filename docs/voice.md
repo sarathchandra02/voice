@@ -47,3 +47,5 @@ Automated tests use synthetic PDFs, dummy credentials, a simulated WebRTC peer/m
 - [Realtime client event schema](https://developers.openai.com/api/reference/resources/realtime/client-events): client input IDs and event correlation.
 
 See [experiment workflow and rollback](experiments.md) for the preserved demo, branch separation, scan limits, and deployment policy.
+
+The provider-aware picker and experimental GPT-Live/Gemini paths are described in [voice models](voice-models.md). The original Realtime behavior above remains the default.

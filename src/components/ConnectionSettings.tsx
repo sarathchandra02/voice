@@ -1,10 +1,15 @@
+import VoiceModelPicker from "./VoiceModelPicker";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Check, KeyRound, Settings2, X } from "lucide-react";
 
 import {
   CONNECTION_KEY,
+  GEMINI_KEY,
   MODEL_KEY,
-  MODELS,
+  providerKey,
+  providerName,
+  type Provider,
+  validateProviderKey,
   OPEN_SETTINGS,
   SETTINGS_CHANGED,
   readConnection,
@@ -18,11 +23,13 @@ export default function ConnectionSettings() {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [model, setModel] = useState<string>(MODELS[0]);
+  const [provider, setProvider] = useState<Provider>("openai");
   function refresh() {
     try {
-      setConfigured(Boolean(localStorage.getItem(CONNECTION_KEY)));
-      setModel(readConnection().model);
+      const connection = readConnection();
+      setProvider(connection.provider);
+      setDraft("");
+      setConfigured(Boolean(connection.key));
     } catch {
       setConfigured(false);
       setError(
@@ -33,7 +40,11 @@ export default function ConnectionSettings() {
   useEffect(() => {
     refresh();
     const changed = (event: StorageEvent) => {
-      if (event.key === CONNECTION_KEY || event.key === null) refresh();
+      if (
+        [CONNECTION_KEY, GEMINI_KEY, MODEL_KEY].includes(event.key || "") ||
+        event.key === null
+      )
+        refresh();
     };
     window.addEventListener("storage", changed);
     const show = () => {
@@ -41,9 +52,11 @@ export default function ConnectionSettings() {
       setOpen(true);
     };
     window.addEventListener(OPEN_SETTINGS, show);
+    window.addEventListener(SETTINGS_CHANGED, refresh);
     return () => {
       window.removeEventListener("storage", changed);
       window.removeEventListener(OPEN_SETTINGS, show);
+      window.removeEventListener(SETTINGS_CHANGED, refresh);
     };
   }, []);
   useEffect(() => {
@@ -64,7 +77,8 @@ export default function ConnectionSettings() {
       return;
     }
     try {
-      localStorage.setItem(CONNECTION_KEY, key);
+      validateProviderKey(provider, key);
+      localStorage.setItem(providerKey(provider), key);
       window.dispatchEvent(new Event(SETTINGS_CHANGED));
       setConfigured(true);
       setDraft("");
@@ -78,7 +92,7 @@ export default function ConnectionSettings() {
   }
   function remove() {
     try {
-      localStorage.removeItem(CONNECTION_KEY);
+      localStorage.removeItem(providerKey(provider));
       window.dispatchEvent(new Event(SETTINGS_CHANGED));
       setConfigured(false);
       setDraft("");
@@ -131,8 +145,8 @@ export default function ConnectionSettings() {
         <span className="eyebrow">YOUR CONNECTION</span>
         <h2 id="connection-title">A voice for your reading.</h2>
         <p className="connection-description">
-          Save your OpenAI key once. You can update or remove it here whenever
-          you need.
+          Choose a voice model and connect its provider. OpenAI and Google
+          Gemini use separate keys.
         </p>
         <div className="connection-status">
           {configured ? <Check size={14} /> : <KeyRound size={14} />}
@@ -142,10 +156,10 @@ export default function ConnectionSettings() {
         </div>
         <form onSubmit={save}>
           <label className="connection-label">
-            OpenAI API key
+            {providerName(provider)} API key
             <input
               type="password"
-              aria-label="OpenAI API key"
+              aria-label={`${providerName(provider)} API key`}
               autoComplete="off"
               spellCheck={false}
               value={draft}
@@ -156,39 +170,17 @@ export default function ConnectionSettings() {
               maxLength={512}
             />
           </label>
-          <div className="connection-row">
-            <label htmlFor="voice-model">Voice model</label>
-            <select
-              id="voice-model"
-              value={model}
-              onChange={(event) => {
-                try {
-                  localStorage.setItem(MODEL_KEY, event.target.value);
-                  setModel(event.target.value);
-                  window.dispatchEvent(new Event(SETTINGS_CHANGED));
-                  setNotice("Model saved. Start voice to connect.");
-                } catch {
-                  setError("Your browser could not save the model.");
-                }
-              }}
-            >
-              {MODELS.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </div>
+          <VoiceModelPicker key={open ? "open" : "closed"} />
           <p className="connection-storage-note">
             Saved unencrypted in this browser. Scripts running on this site can
             access it. Use a trusted device and remove the key here when you no
             longer need it.
           </p>
           <p className="connection-availability">
-            Saving a key makes no API request. Start voice connects to OpenAI
-            and sends microphone audio and requested document excerpts or
-            images. API usage is billed to your OpenAI account. Changing
-            settings stops an active session.
+            Saving a key makes no API request. Start voice connects to the
+            selected provider and sends microphone audio and requested document
+            excerpts or images. API usage is billed to that provider account.
+            Changing settings stops an active session.
           </p>
           {error && (
             <p className="error" role="alert">

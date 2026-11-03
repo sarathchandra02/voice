@@ -1,3 +1,11 @@
+# Voice-model picker — 3 November 2026
+
+Added provider-aware model selection, separate provider key storage, cancelable setup, requested/confirmed model labels, and experimental GPT-Live/Gemini adapters on `experiment/voice-model-picker`. GitHub main remains the earlier stable demo.
+
+Validation: the 32 unit tests passed; the 41-test browser run passed, and the final five-case provider/audio run passed, including two subsequently added cases (43 total browser cases). Checks cover cancel preserving active capture and the selected model, rejecting a provider-key mismatch, separate credential storage, switching terminating capture, actual model selection in request payloads, model reporting, Live backend function continuation, Gemini endpoint isolation, audio/microphone cleanup, and real AudioWorklet PCM frame generation. The production build and formatting checks passed. New provider transports use simulated peers and dummy keys; no paid call or live authentication/acoustic test was performed. See [model-picker behavior and limitations](voice-models.md).
+
+---
+
 # Figure-search experiment — 3 November 2026
 
 The working demo remains on GitHub main at `c3a9cb4`, tagged `demo-working-2026-11-03`. This increment belongs to `experiment/figure-search`; see [branch and rollback policy](experiments.md).

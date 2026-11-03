@@ -1,8 +1,10 @@
+import { AdditionalVoice } from "./additional";
 import { useEffect, useRef, useState } from "react";
 import type { PdfDocument } from "../documents/pdf";
 import { INITIAL_VOICE, RealtimeVoice, type VoiceActivity } from "./realtime";
 import {
   CONNECTION_KEY,
+  GEMINI_KEY,
   MODEL_KEY,
   OPEN_SETTINGS,
   readConnection,
@@ -15,7 +17,7 @@ export function useVoice(
   onActivity: (event: VoiceActivity) => void,
 ) {
   const [state, setState] = useState({ ...INITIAL_VOICE });
-  const session = useRef<RealtimeVoice | null>(null);
+  const session = useRef<RealtimeVoice | AdditionalVoice | null>(null);
   const audio = useRef<HTMLAudioElement>(null);
   const currentPage = useRef(page);
   currentPage.current = page;
@@ -36,7 +38,10 @@ export function useVoice(
         "Connection settings changed. Start voice to use the updated settings.",
       );
     const storage = (event: StorageEvent) => {
-      if (event.key === null || [CONNECTION_KEY, MODEL_KEY].includes(event.key))
+      if (
+        event.key === null ||
+        [CONNECTION_KEY, GEMINI_KEY, MODEL_KEY].includes(event.key)
+      )
         changed();
     };
     document.addEventListener("visibilitychange", stopHidden);
@@ -63,7 +68,9 @@ export function useVoice(
         return;
       }
       session.current?.stop();
-      const next = new RealtimeVoice(
+      const Voice =
+        connection.transport === "realtime" ? RealtimeVoice : AdditionalVoice;
+      const next = new Voice(
         doc,
         () => currentPage.current,
         audio.current,

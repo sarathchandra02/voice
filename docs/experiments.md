@@ -19,3 +19,7 @@ This experiment does not infer chapter boundaries or perform OCR. Empty, failed,
 The pre-experiment Sites source commit is `d2581b8e12cad18a38699a3880ac7784efc719e1`; its successful saved version is `appgprj_6ae9c6678ef8819197fdc0a56f08942d~appgver_4324026957048191bb802ecaf37f10c1`.
 
 To restore the hosted demo, redeploy that existing saved version using Sites, preserving its audience. Alternatively, restore the tagged GitHub source into the Sites checkout while retaining `.openai/hosting.json`, then build, commit, push to Sites, and publish. Rollback does not require rewriting GitHub history or merging the experimental branch into main.
+
+## Voice-model picker experiment
+
+`experiment/voice-model-picker` builds on the figure-search experiment, adding separate provider keys and OpenAI/Gemini model choices. The new GPT-Live and Gemini adapters are explicitly experimental; see [model details and validation limits](voice-models.md). GitHub main and the working-demo tag remain unchanged.

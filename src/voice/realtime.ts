@@ -1,3 +1,4 @@
+import { reportedModel, type Provider } from "./settings";
 import type { PdfDocument } from "../documents/pdf";
 import type { Source } from "../documents/model";
 import { fitImage } from "./images";
@@ -16,6 +17,9 @@ export type VoiceState = {
   playbackBlocked: boolean;
   inputTokens: number;
   outputTokens: number;
+  provider: Provider;
+  model: string | null;
+  modelConfirmed: boolean;
 };
 export const INITIAL_VOICE: VoiceState = {
   status: "idle",
@@ -25,6 +29,9 @@ export const INITIAL_VOICE: VoiceState = {
   playbackBlocked: false,
   inputTokens: 0,
   outputTokens: 0,
+  provider: "openai",
+  model: null,
+  modelConfirmed: false,
 };
 export type VoiceActivity = {
   id: string;
@@ -32,7 +39,8 @@ export type VoiceActivity = {
   title: string;
   detail: string;
   sources?: Source[];
-  delivery?: "pending" | "accepted" | "failed";
+  delivery?: "pending" | "accepted" | "failed" | "sent";
+  provider?: string;
 };
 type Receipt = {
   resolve: () => void;
@@ -119,6 +127,8 @@ export class RealtimeVoice {
     if (this.state.status !== "idle" || !this.alive) return;
     this.update({
       status: "connecting",
+      model,
+      modelConfirmed: false,
       message: "Allow your microphone to connect voice…",
     });
     this.startTimer = setTimeout(
@@ -344,6 +354,8 @@ export class RealtimeVoice {
     this.speechItems.clear();
     this.update({
       status: "idle",
+      model: null,
+      modelConfirmed: false,
       activity: "listening",
       muted: false,
       playbackBlocked: false,
@@ -460,6 +472,8 @@ export class RealtimeVoice {
       });
       this.update({
         status: "connected",
+        model: reportedModel(event.session?.model) || this.state.model,
+        modelConfirmed: Boolean(reportedModel(event.session?.model)),
         message: "Listening. Ask about your book.",
       });
       this.sessionTimer = setTimeout(
