@@ -31,6 +31,7 @@ npm run dev
 - Actual page rendering, physical page navigation, zoom, fit width, and a clearly labelled selectable extracted-text fallback.
 - PDF-provided book labels, including Roman front matter and ambiguous-label rejection; individual local label corrections. Unlabelled pages are not silently treated as known printed labels.
 - Progressive keyword search with pause/resume, coverage counts, and bounded index entries.
+- Three-dot options → About this book: chapter bookmarks, a paginated physical/book page map, and a browsable extracted-term index with all matching page references. Term references can be inspected without moving the reader. The term index is lexical; a semantic concept map is still pending.
 - Direct text/image retrieval independent of indexing progress, PDF outline lookup, and sequential next-page research.
 - Source-linked research results; explicit navigation and return-to-reading-position controls.
 - Separate foreground and background state, local image preparation after a 2.5-second dwell, and cancellation on page/document changes.

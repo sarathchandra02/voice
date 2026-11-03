@@ -104,7 +104,7 @@ The reader works without a provider connection. The companion clearly reports th
 
 ### 2. Whole-document retrieval and trustworthy sources
 
-Implement progressive bounded PDF indexing with pause/resume and honest coverage. Direct reads and image rendering bypass incomplete indexing. Add bounded crops with image identity, hash, size, and dimensions.
+Implement progressive bounded PDF indexing with pause/resume and honest coverage. Expose an About this book index with chapters, printed-to-physical page mappings, and topic/concept references. The initial implementation provides a lexical extracted-term catalog with paginated page references; semantic concept grouping, synonyms, and concept-to-diagram links remain a later part of this milestone. Direct reads and image rendering bypass incomplete indexing. Add bounded crops with image identity, hash, size, and dimensions.
 
 Implement chapter discovery, progressive figure candidates, and bounded sequential exploration through the independent assistant research interface. Include the architecture acceptance checks above in this milestone; chapter/diagram lookup is required scope, not a later convenience feature.
 

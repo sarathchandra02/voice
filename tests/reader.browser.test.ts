@@ -329,3 +329,90 @@ test("new activity does not drag a user away from older conversation entries", a
     ),
   ).toBeLessThan(3);
 });
+test("About this book exposes a page map and term references without moving the reader", async ({
+  page,
+}) => {
+  await open(page);
+  await page
+    .getByRole("button", { name: "Companion options", exact: true })
+    .click();
+  await expect(
+    page.getByText("All pages indexed", { exact: true }),
+  ).toBeVisible();
+  await page.getByText("About this book", { exact: false }).click();
+  const index = page.locator(".book-index");
+  await expect(index).toContainText("Systems of equations");
+  await index.getByRole("button", { name: "Page map", exact: true }).click();
+  await index.getByLabel("Filter page map").fill("35");
+  await expect(
+    index.getByRole("button", {
+      name: "Inspect indexed PDF page 37",
+      exact: true,
+    }),
+  ).toContainText("Book 35");
+  await index
+    .getByRole("button", { name: "Inspect indexed PDF page 37", exact: true })
+    .click();
+  await expect(page.getByTestId("evidence")).toContainText("PDF 37");
+  await index
+    .getByRole("button", { name: "Topics & terms", exact: true })
+    .click();
+  await expect(index).toContainText("not an AI concept map");
+  await index.getByLabel("Filter indexed terms").fill("heliotrope");
+  await index
+    .getByRole("button", { name: "heliotrope 1 page", exact: true })
+    .click();
+  await index
+    .getByRole("button", { name: "Inspect indexed PDF page 95", exact: true })
+    .click();
+  await expect(page.getByTestId("evidence")).toContainText("heliotrope");
+  await expect(page.getByTestId("reader-position")).toContainText(
+    "PDF page 1 of 100",
+  );
+});
+test("page index preserves duplicate labels and is cleared on document replacement", async ({
+  page,
+}) => {
+  await open(page, "public/fixtures/ambiguous.pdf");
+  await page
+    .getByRole("button", { name: "Companion options", exact: true })
+    .click();
+  await page.getByText("About this book", { exact: false }).click();
+  await page.getByRole("button", { name: "Page map", exact: true }).click();
+  await page.getByLabel("Filter page map").fill("1");
+  await expect(
+    page.getByRole("button", {
+      name: "Inspect indexed PDF page 1",
+      exact: true,
+    }),
+  ).toContainText("Book 1");
+  await expect(
+    page.getByRole("button", {
+      name: "Inspect indexed PDF page 2",
+      exact: true,
+    }),
+  ).toContainText("Book 1");
+  await page
+    .getByLabel("Open PDF file", { exact: true })
+    .setInputFiles("public/fixtures/replacement.pdf");
+  await expect(page.getByTestId("reader-position")).toContainText(
+    "PDF page 1 of 1",
+  );
+  await page
+    .getByRole("button", { name: "Companion options", exact: true })
+    .click();
+  await page.getByText("About this book", { exact: false }).click();
+  await page.getByRole("button", { name: "Page map", exact: true }).click();
+  await expect(
+    page.getByRole("button", {
+      name: "Inspect indexed PDF page 1",
+      exact: true,
+    }),
+  ).toContainText("Book label unknown");
+  await expect(
+    page.getByRole("button", {
+      name: "Inspect indexed PDF page 2",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+});

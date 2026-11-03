@@ -42,3 +42,30 @@ describe("whole-document local index", () => {
     expect(index.search("关系")[0]).toBe(1);
   });
 });
+describe("browsable term index", () => {
+  it("exposes all references beyond the five-hit search window without duplicating pages", () => {
+    const index = new LocalIndex();
+    for (let page = 25; page >= 1; page--) {
+      index.add(page, "the equations");
+      index.add(page, "the equations");
+    }
+    expect(index.search("equations")).toHaveLength(5);
+    expect(index.listTerms().entries).toEqual([
+      { term: "equations", count: 25 },
+    ]);
+    expect(index.termPages("EQUATIONS", 20)).toEqual({
+      total: 25,
+      pages: [21, 22, 23, 24, 25],
+    });
+  });
+  it("filters extracted terms and clears references with the document", () => {
+    const index = new LocalIndex();
+    index.add(95, "Heliotrope and equations");
+    expect(index.listTerms("helio").entries).toEqual([
+      { term: "heliotrope", count: 1 },
+    ]);
+    index.clear();
+    expect(index.listTerms("helio").total).toBe(0);
+    expect(index.termPages("heliotrope").pages).toEqual([]);
+  });
+});

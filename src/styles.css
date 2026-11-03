@@ -1243,3 +1243,138 @@ progress::-webkit-progress-value {
     margin: 0;
   }
 }
+
+.book-index {
+  margin-top: 18px;
+  border: 1px solid #dde4d4;
+  border-radius: 8px;
+  background: #f3f6ed;
+}
+.book-index > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 13px 11px;
+  font-size: 12px;
+}
+.book-index > summary > span {
+  margin-left: auto;
+  font-size: 9px;
+  color: #86957d;
+}
+.book-index-body {
+  padding: 0 12px 9px;
+  border-top: 1px solid #dde4d4;
+}
+.book-index-name {
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  margin: 14px 0 3px;
+}
+.index-sections {
+  display: flex;
+  gap: 5px;
+  margin: 12px 0;
+}
+.index-sections button {
+  flex: 1;
+  font-size: 10px;
+  padding: 8px 4px;
+}
+.index-sections button[aria-pressed="true"] {
+  background: #e1e9d8;
+  border-color: #b9c9ab;
+}
+.index-coverage {
+  font-size: 10px;
+  color: #7b886f;
+  line-height: 1.6;
+}
+.index-filter {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  font-size: 10px;
+  color: #6a7b60;
+}
+.index-filter input {
+  width: 100%;
+  background: #fff;
+}
+.index-page-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.index-page-link {
+  display: grid;
+  grid-template-columns: 1fr 14px;
+  text-align: left;
+  padding: 9px;
+  font-size: 11px;
+  gap: 3px;
+  justify-content: start;
+}
+.index-page-link > span {
+  grid-column: 1;
+}
+.index-page-link small {
+  font-size: 9px;
+  color: #849178;
+  grid-column: 1;
+}
+.index-page-link svg {
+  grid-column: 2;
+  grid-row: 1/3;
+}
+.index-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 9px 0;
+  color: #7e8b72;
+  font-size: 10px;
+}
+.index-chapter {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  font-size: 11px;
+  margin-top: 5px;
+}
+.index-chapter small {
+  color: #87977a;
+  font-size: 9px;
+}
+.term-list > button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #e1e7d9;
+  border-radius: 0;
+  background: transparent;
+  font-size: 11px;
+}
+.term-list > button > span {
+  margin-right: auto;
+}
+.term-list small {
+  color: #8c9982;
+  font-size: 9px;
+}
+.selected-term {
+  font-size: 12px;
+  font-weight: 550;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 10px 0;
+}
+.selected-term small {
+  color: #849178;
+  font-weight: 400;
+}

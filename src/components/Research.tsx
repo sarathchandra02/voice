@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import type { PdfDocument } from "../documents/pdf";
 import type { ActivityDraft } from "./Companion";
+import BookIndex from "./BookIndex";
 import { resolvePage, type Coverage, type Source } from "../documents/model";
 
 function Evidence({
@@ -160,6 +161,11 @@ export default function Research({
     coverage.limited;
   return (
     <div className="research-body">
+      <BookIndex
+        doc={doc}
+        coverage={coverage}
+        inspect={(page) => inspect("text", page)}
+      />
       <div className="section-heading">
         <h3>Explore the book</h3>
         <span>Independent of your view</span>

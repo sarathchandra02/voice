@@ -98,6 +98,34 @@ export class LocalIndex {
       .filter((page) => others.every((set) => set.has(page)))
       .slice(0, 5);
   }
+  listTerms(query = "", offset = 0) {
+    const common = new Set(
+      "the and for with this that from have has are was were will would should could into than then their they them your you our its not can but also all any each such which when where what how who these those there here been being some more most only other about through between without within".split(
+        " ",
+      ),
+    );
+    const filter = query.trim().toLocaleLowerCase().slice(0, 100);
+    const terms = [...this.words.keys()]
+      .filter((term) =>
+        filter
+          ? term.includes(filter)
+          : /\p{L}/u.test(term) && !common.has(term),
+      )
+      .sort((a, b) => a.localeCompare(b));
+    const start = Math.max(0, Math.floor(offset));
+    return {
+      total: terms.length,
+      entries: terms
+        .slice(start, start + 20)
+        .map((term) => ({ term, count: this.words.get(term)!.length })),
+    };
+  }
+  termPages(term: string, offset = 0) {
+    const pages = this.words.get(term.trim().toLocaleLowerCase()) || [];
+    const ordered = [...pages].sort((a, b) => a - b);
+    const start = Math.max(0, Math.floor(offset));
+    return { total: ordered.length, pages: ordered.slice(start, start + 20) };
+  }
   clear() {
     this.words.clear();
     this.pages.clear();

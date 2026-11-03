@@ -4,8 +4,8 @@ Run in the managed Linux cloud environment on 3 November 2026, using Node.js 24.
 
 | Check | Result | Evidence scope |
 | --- | --- | --- |
-| Unit suite | Passed, 13 tests | Physical/book label resolution, duplicate/missing/out-of-range references, off-screen keyword lookup, idempotent indexing, source reset, Unicode tokens, bounded result count |
-| Browser suite | Passed, 13 tests | Local rendering, whole-book keyword retrieval, off-screen page images, explicit source navigation/back, Roman labels, duplicate labels, chapter/next-page research preserving scroll, paused-index direct reads, replace/clear races, invalid files, mobile viewport, settled context, corrected labels, default voice/history layout, options dialog keyboard/focus behavior, source previews, history scroll preservation |
+| Unit suite | Passed, 15 tests | Physical/book label resolution, duplicate/missing/out-of-range references, off-screen keyword lookup, idempotent indexing, source reset, Unicode tokens, bounded result count, term catalog filtering, paginated references beyond the search result window |
+| Browser suite | Passed, 15 tests | Local rendering, whole-book keyword retrieval, off-screen page images, explicit source navigation/back, Roman labels, duplicate labels, chapter/next-page research preserving scroll, paused-index direct reads, replace/clear races, invalid files, mobile viewport, settled context, corrected labels, default voice/history layout, options dialog keyboard/focus behavior, source previews, history scroll preservation, About this book page/term indexes, duplicated label preservation and index teardown |
 | TypeScript + production build | Passed | Local application and PDF worker compile; PDF module loads separately from the initial UI |
 | Production dependency audit | Passed, 0 reported vulnerabilities | Registry advisory snapshot; not a complete security assessment |
 | Visual review | Passed for inspected desktop screenshot | Reader and research layout at 1440 × 1000 with a synthetic PDF |
