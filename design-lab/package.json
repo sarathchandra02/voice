@@ -1,0 +1,10 @@
+{
+  "name": "margin-design-lab",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5174 --strictPort",
+    "build": "tsc --noEmit -p tsconfig.json && vite build && node export.mjs"
+  }
+}
