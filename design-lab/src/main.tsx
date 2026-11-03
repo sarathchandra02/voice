@@ -297,7 +297,6 @@ function App() {
             </button>
           ))}
         </nav>
-        <span className="preview-label">Sample content · no live AI</span>
       </div>
       <div className="app-frame">
         {design === "focus" && (
